@@ -150,6 +150,14 @@ config.ldflags = [
     "-w off",
 ]
 
+# Progress configuration
+config.progress_all = False
+config.progress_use_fancy = True
+config.progress_code_fancy_frac = 10_000
+config.progress_code_fancy_item = "Pokos"
+config.progress_data_fancy_frac = 201
+config.progress_data_fancy_item = "treasures"
+
 # Base flags, common to most GC/Wii games.
 # Generally leave untouched, with overrides added below.
 cflags_base = [
@@ -2001,7 +2009,6 @@ if args.mode == "configure":
     generate_build(config)
 elif args.mode == "progress":
     # Print progress and write progress.json
-    config.progress_each_module = args.verbose
     calculate_progress(config)
 else:
     sys.exit("Unknown mode: " + args.mode)

@@ -71,7 +71,6 @@ class ProjectConfig:
         self.sjiswrap_path: Optional[Path] = None  # If None, download
 
         # Project config
-        self.non_matching: bool = False
         self.build_rels: bool = True  # Build REL files
         self.check_sha_path: Optional[Path] = None  # Path to version.sha1
         self.config_path: Optional[Path] = None  # Path to config.yml
@@ -90,9 +89,6 @@ class ProjectConfig:
         ] = None  # Object name for generating empty RELs
         self.shift_jis = (
             True  # Convert source files from UTF-8 to Shift JIS automatically
-        )
-        self.reconfig_deps: Optional[List[Path]] = (
-            None  # Additional re-configuration dependency files
         )
 
         # Progress output and progress.json config
@@ -557,7 +553,6 @@ def generate_build_ninja(
                 )
             n.newline()
 
-    link_outputs: List[Path] = []
     if build_config:
         link_steps: List[LinkStep] = []
         used_compiler_versions: Set[str] = set()
@@ -765,7 +760,6 @@ def generate_build_ninja(
         ###
         for step in link_steps:
             step.write(n)
-            link_outputs.append(step.output())
         n.newline()
 
         ###
@@ -867,7 +861,7 @@ def generate_build_ninja(
             outputs=ok_path,
             rule="check",
             inputs=config.check_sha_path,
-            implicit=[dtk, *link_outputs],
+            implicit=[dtk, *map(lambda step: step.output(), link_steps)],
         )
         n.newline()
 
@@ -967,7 +961,6 @@ def generate_build_ninja(
             configure_script,
             python_lib,
             python_lib_dir / "ninja_syntax.py",
-            *(config.reconfig_deps or [])
         ],
     )
     n.newline()
@@ -977,10 +970,7 @@ def generate_build_ninja(
     ###
     n.comment("Default rule")
     if build_config:
-        if config.non_matching:
-            n.default(link_outputs)
-        else:
-            n.default(progress_path)
+        n.default(progress_path)
     else:
         n.default(build_config_path)
 

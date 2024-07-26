@@ -234,7 +234,7 @@ config.libs = [
             Object(NonMatching, "JSystem/JMessage/resource.cpp"),
             Object(Matching, "JSystem/JMessage/data.cpp"),
             Object(NonMatching, "JSystem/JMessage/processor.cpp"),
-            Object(NonMatching, "JSystem/JMessage/control.cpp"),
+            Object(Matching, "JSystem/JMessage/control.cpp"),
         ],
     },
     {

@@ -265,9 +265,9 @@ config.libs = [
         "objects": [
             Object(NonMatching, "JSystem/JStudio_JStage/object-light.cpp"),
             Object(Matching, "JSystem/JStudio_JStage/object.cpp"),
-            Object(NonMatching, "JSystem/JStudio_JStage/object-actor.cpp"),
+            Object(Matching, "JSystem/JStudio_JStage/object-actor.cpp"),
             Object(Matching, "JSystem/JStudio_JStage/object-ambientlight.cpp"),
-            Object(NonMatching, "JSystem/JStudio_JStage/object-camera.cpp"),
+            Object(Matching, "JSystem/JStudio_JStage/object-camera.cpp"),
             Object(Matching, "JSystem/JStudio_JStage/object-fog.cpp"),
             Object(Matching, "JSystem/JStudio_JStage/control.cpp"),
         ],

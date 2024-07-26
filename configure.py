@@ -424,7 +424,7 @@ config.libs = [
             Object(NonMatching, "JSystem/J2D/J2DMaterial.cpp"),
             Object(NonMatching, "JSystem/J2D/J2DMaterialFactory.cpp"),
             Object(NonMatching, "JSystem/J2D/J2DPictureEx.cpp"),
-            Object(NonMatching, "JSystem/J2D/J2DTevs.cpp"),
+            Object(Matching, "JSystem/J2D/J2DTevs.cpp"),
             Object(NonMatching, "JSystem/J2D/J2DTextBoxEx.cpp"),
             Object(Matching, "JSystem/J2D/J2DAnimation.cpp"),
         ],

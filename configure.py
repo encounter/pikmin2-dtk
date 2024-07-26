@@ -445,7 +445,7 @@ config.libs = [
             Object(Matching, "JSystem/J3D/J3DDrawBuffer.cpp"),
             Object(NonMatching, "JSystem/J3D/J3DModel.cpp"),
             Object(Matching, "JSystem/J3D/J3DAnimation.cpp"),
-            Object(NonMatching, "JSystem/J3D/J3DMaterialAnm.cpp"),
+            Object(Matching, "JSystem/J3D/J3DMaterialAnm.cpp"),
             Object(NonMatching, "JSystem/J3D/J3DCluster.cpp"),
             Object(NonMatching, "JSystem/J3D/J3DJoint.cpp"),
             Object(NonMatching, "JSystem/J3D/J3DMaterialFactory.cpp"),

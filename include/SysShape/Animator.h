@@ -39,7 +39,7 @@ struct Animator : public BaseAnimator {
 	{
 		return (mAnimInfo != nullptr) ? mAnimInfo->mCalc : nullptr;
 	}
-	virtual void animate(f32); // _0C
+	virtual void animate(f32 speed); // _0C
 
 	void startAnim(int animID, MotionListener* listener);
 	void startExAnim(AnimInfo* info);
@@ -79,8 +79,6 @@ struct Animator : public BaseAnimator {
 	}
 
 	inline f32 getTimer() const { return mTimer; }
-
-	inline KeyEvent* moveCurAnim() { return mCurAnimKey = (KeyEvent*)mCurAnimKey->mNext; }
 
 	MotionListener* mListener; // _04
 	f32 mTimer;                // _08

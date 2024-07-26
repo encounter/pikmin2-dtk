@@ -268,7 +268,7 @@ void Item::doAI()
 {
 	mFsm->exec(this);
 	switch (mSoundEvent.update()) {
-	case 2:
+	case TSE_ApplyTransition:
 		P2ASSERTLINE(446, mSoundObj->getCastType() == PSM::CCT_WorkItem);
 		static_cast<PSM::WorkItem*>(mSoundObj)->eventStop();
 		break;
@@ -1167,7 +1167,7 @@ void Mgr::generatorWrite(Stream& output, GenItemParm* genParm)
 	P2ASSERTLINE(940, genBridgeParm);
 	output.textWriteTab(output.mTabCount);
 	output.writeShort(genBridgeParm->mBridgeType);
-	output.textWriteText("\t#æ©‹ã‚¿ã‚¤ãƒ—\r\n"); // '#Bridge type'
+	output.textWriteText("\t#‹´ƒ^ƒCƒv\r\n"); // '#Bridge type'
 }
 
 /**

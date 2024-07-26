@@ -17,14 +17,14 @@ namespace PSM {
 f32 sBoss_ViewDist    = 1300.0f;
 f32 sBoss_ViewDistVol = 0.3f;
 f32 sBoss_DistMax     = 4000.0f;
-EnemyBigBoss* sBigBoss;
+EnemyBigBoss* EnemyBigBoss::sBigBoss;
 
 /**
  * @note Address: N/A
  * @note Size: 0x50
  */
 ObjBase::ObjBase()
-    : JSUPtrLink(this)
+    : JSULink<ObjBase>(this)
 {
 	// UNUSED FUNCTION
 }
@@ -33,47 +33,7 @@ ObjBase::ObjBase()
  * @note Address: 0x8045CE64
  * @note Size: 0x80
  */
-ObjBase::~ObjBase()
-{
-	/*
-	stwu     r1, -0x10(r1)
-	mflr     r0
-	stw      r0, 0x14(r1)
-	stw      r31, 0xc(r1)
-	mr       r31, r4
-	stw      r30, 8(r1)
-	or.      r30, r3, r3
-	beq      lbl_8045CEC8
-	lis      r4, __vt__Q23PSM7ObjBase@ha
-	addi     r3, r30, 0x10
-	addi     r5, r4, __vt__Q23PSM7ObjBase@l
-	li       r4, 0
-	stw      r5, 0x28(r30)
-	addi     r0, r5, 8
-	stw      r0, 0x10(r30)
-	bl       __dt__11JKRDisposerFv
-	cmplwi   r30, 0
-	beq      lbl_8045CEB8
-	mr       r3, r30
-	li       r4, 0
-	bl       __dt__10JSUPtrLinkFv
-
-lbl_8045CEB8:
-	extsh.   r0, r31
-	ble      lbl_8045CEC8
-	mr       r3, r30
-	bl       __dl__FPv
-
-lbl_8045CEC8:
-	lwz      r0, 0x14(r1)
-	mr       r3, r30
-	lwz      r31, 0xc(r1)
-	lwz      r30, 8(r1)
-	mtlr     r0
-	addi     r1, r1, 0x10
-	blr
-	*/
-}
+ObjBase::~ObjBase() { }
 
 /**
  * @note Address: 0x8045CEE4
@@ -92,93 +52,15 @@ ObjMgr::~ObjMgr()
 {
 	if (mScenes) {
 		mScenes->detachObjMgr();
+	}
+
+	while (mHead) {
 		JSULink<ObjBase>* link = (JSULink<ObjBase>*)mHead;
-		while (link) {
-			ObjBase* obj = link->getObject();
-			remove(obj);
-			delete obj;
-			link = (JSULink<ObjBase>*)mHead;
-		}
+		ObjBase* obj           = link->getObject();
+		remove(obj);
+		delete obj;
 	}
 	sInstance = nullptr;
-	/*
-	stwu     r1, -0x20(r1)
-	mflr     r0
-	stw      r0, 0x24(r1)
-	stw      r31, 0x1c(r1)
-	stw      r30, 0x18(r1)
-	mr       r30, r4
-	stw      r29, 0x14(r1)
-	or.      r29, r3, r3
-	beq      lbl_8045D014
-	lis      r3, __vt__Q23PSM6ObjMgr@ha
-	addi     r4, r3, __vt__Q23PSM6ObjMgr@l
-	stw      r4, 0x28(r29)
-	addi     r3, r4, 8
-	addi     r0, r4, 0x14
-	stw      r3, 0xc(r29)
-	stw      r0, 0x10(r29)
-	lwz      r3, 0x2c(r29)
-	cmplwi   r3, 0
-	beq      lbl_8045CFB4
-	bl       detachObjMgr__Q23PSM13Scene_ObjectsFv
-	b        lbl_8045CFB4
-
-lbl_8045CF84:
-	lwz      r31, 0(r3)
-	mr       r3, r29
-	mr       r4, r31
-	bl       remove__10JSUPtrListFP10JSUPtrLink
-	cmplwi   r31, 0
-	beq      lbl_8045CFB4
-	mr       r3, r31
-	li       r4, 1
-	lwz      r12, 0x28(r31)
-	lwz      r12, 0x14(r12)
-	mtctr    r12
-	bctrl
-
-lbl_8045CFB4:
-	lwz      r3, 0(r29)
-	cmplwi   r3, 0
-	bne      lbl_8045CF84
-	li       r0, 0
-	addi     r3, r29, 0x10
-	stw      r0,
-"sInstance__Q28PSSystem28SingletonBase<Q23PSM6ObjMgr>"@sda21(r13) li       r4, 0
-	bl       __dt__11JKRDisposerFv
-	addic.   r0, r29, 0xc
-	beq      lbl_8045CFF0
-	lis      r3, "__vt__Q28PSSystem28SingletonBase<Q23PSM6ObjMgr>"@ha
-	li       r0, 0
-	addi     r3, r3, "__vt__Q28PSSystem28SingletonBase<Q23PSM6ObjMgr>"@l
-	stw      r3, 0xc(r29)
-	stw      r0,
-"sInstance__Q28PSSystem28SingletonBase<Q23PSM6ObjMgr>"@sda21(r13)
-
-lbl_8045CFF0:
-	cmplwi   r29, 0
-	beq      lbl_8045D004
-	mr       r3, r29
-	li       r4, 0
-	bl       __dt__10JSUPtrListFv
-
-lbl_8045D004:
-	extsh.   r0, r30
-	ble      lbl_8045D014
-	mr       r3, r29
-	bl       __dl__FPv
-
-lbl_8045D014:
-	lwz      r0, 0x24(r1)
-	mr       r3, r29
-	lwz      r31, 0x1c(r1)
-	lwz      r30, 0x18(r1)
-	lwz      r29, 0x14(r1)
-	mtlr     r0
-	addi     r1, r1, 0x20
-	blr
-	*/
 }
 
 /**
@@ -299,28 +181,29 @@ u8 Creature::getPlayingHandleNum()
 void Creature::loopCalc(FrameCalcArg& arg)
 {
 	JAInter::Object* jai = arg.mObj->getJAIObject();
-	Vec* pos             = &jai->_28;
-	f32* dist            = arg.mDist;
+	Vec& pos             = jai->_28;
+	f32& dist            = *arg.mDist;
 	P2ASSERTLINE(170, jai->_24);
 
 	u8 players = PSSystem::SingletonBase<ObjCalcBase>::sInstance->getPlayerNo(this);
-	PSMTXMultVec(*JAIBasic::msBasic->mCameras[players].mMtx, jai->_24, pos);
-	*dist = pikmin2_sqrtf((pos->x * pos->x) + (pos->y * pos->y) + (pos->z * pos->z));
+	PSMTXMultVec(*JAIBasic::msBasic->mCameras[players].mMtx, jai->_24, &pos);
+	dist = pikmin2_sqrtf((pos.x * pos.x) + (pos.y * pos.y) + (pos.z * pos.z));
 
 	for (u8 i = 0; i < jai->mHandleCount; i++) {
 		JAISound* se = jai->mSounds[i];
 		if (se) {
 			JAISound_0x34* data                   = se->mSoundObj;
-			data->mPosition                       = *pos;
-			data->mDistance                       = *dist;
+			data->mPosition                       = pos;
+			data->mDistance                       = dist;
 			static_cast<SeSound*>(se)->mPlayerNum = players;
 		}
 	}
-	f32* pan = arg.mPan;
-	*pan     = SeSound::calcPan(*pos, *dist);
 
-	f32* dolby = arg.mDolby;
-	*dolby     = SeSound::calcDolby(*pos, *dist);
+	f32& pan = *arg.mPan;
+	pan      = SeSound::calcPan(pos, dist);
+
+	f32& dolby = *arg.mDolby;
+	dolby      = SeSound::calcDolby(pos, dist);
 	/*
 	stwu     r1, -0x20(r1)
 	mflr     r0
@@ -427,7 +310,7 @@ JAISound* Creature::startSoundInner(PSM::StartSoundArg& arg)
 	}
 
 	if (temp) {
-		JAInter::Actor actor(0, 0, 0, 0);
+		JAInter::Actor actor(this, jai->_24, 0, 0);
 		u8 players = PSSystem::SingletonBase<ObjCalcBase>::sInstance->getPlayerNo(this);
 		JAIBasic::msBasic->startSoundActorT(sound, temp, &actor, unk, players);
 		onPlayingSe(sound, *temp);
@@ -450,7 +333,7 @@ JAISound* Creature::startSoundInner(PSM::StartSoundArg& arg)
 		}
 		jai->handleStop(id, 0);
 
-		JAInter::Actor actor(0, 0, 0, -1);
+		JAInter::Actor actor(this, jai->_24, 0, 0);
 		u8 players = PSSystem::SingletonBase<ObjCalcBase>::sInstance->getPlayerNo(this);
 		JAIBasic::msBasic->startSoundActorT(sound, getHandleArea(id), &actor, unk, players);
 		onPlayingSe(sound, *getHandleArea(id));
@@ -1135,7 +1018,7 @@ void CreatureAnime::exec()
  */
 void CreatureAnime::onCalcOn()
 {
-	JAInter::Actor actor(this, 0, 0, 0);
+	JAInter::Actor actor(this, _24, 0, 0);
 
 	setAnimSoundActor(&actor, mGameObj->getSound_CurrAnimFrame(), mGameObj->getSound_CurrAnimSpeed(),
 	                  PSSystem::SingletonBase<ObjCalcBase>::sInstance->getPlayerNo(this));
@@ -1274,12 +1157,14 @@ EnemyBase::EnemyBase(Game::EnemyBase* gameObj, u8 p2)
  */
 void EnemyBase::startAnimSound(u32 soundID, JAISound** se, JAInter::Actor* actor, u8 a1)
 {
-	if (static_cast<Game::EnemyBase*>(mGameObj)->mEvents.mFlags[0].isSet(Game::EB_Bittered) && soundID != PSSE_EN_DOPING_GAS_FREEZE
-	    && soundID != PSSE_EN_DOPING_ROCK_FLICK && soundID != PSSE_EN_DOPING_FLICK_LAST) {
-		return;
+	if ((static_cast<Game::EnemyBase*>(mGameObj)->isEvent(0, Game::EB_Bittered))) {
+		u32 id = soundID;
+		if ((id == PSSE_EN_DOPING_GAS_FREEZE || id == PSSE_EN_DOPING_ROCK_FLICK || id == PSSE_EN_DOPING_FLICK_LAST
+		     || id == PSSE_EN_DOPING_ROCK_BREAK)
+		    || ((id >> 12) & 0xf) == 2) {
+			CreatureAnime::startAnimSound(soundID, se, actor, a1);
+		}
 	}
-
-	CreatureAnime::startAnimSound(soundID, se, actor, a1);
 	/*
 	.loc_0x0:
 	  stwu      r1, -0x20(r1)
@@ -1396,11 +1281,14 @@ void EnemyBase::startAnimSound(u32 soundID, JAISound** se, JAInter::Actor* actor
  */
 JAISound* EnemyBase::startSoundInner(PSM::StartSoundArg& arg)
 {
-	if (static_cast<Game::EnemyBase*>(mGameObj)->mEvents.mFlags[0].isSet(Game::EB_Bittered) && arg.mSoundID != PSSE_EN_DOPING_GAS_FREEZE
-	    && arg.mSoundID != PSSE_EN_DOPING_ROCK_FLICK && arg.mSoundID != PSSE_EN_DOPING_FLICK_LAST) {
-		return nullptr;
+	if ((static_cast<Game::EnemyBase*>(mGameObj)->isEvent(0, Game::EB_Bittered))) {
+		u32 id = arg.mSoundID;
+		if ((id == PSSE_EN_DOPING_GAS_FREEZE || id == PSSE_EN_DOPING_ROCK_FLICK || id == PSSE_EN_DOPING_FLICK_LAST
+		     || id == PSSE_EN_DOPING_ROCK_BREAK)
+		    || ((id >> 12) & 0xf) != 2) {
+			return nullptr;
+		}
 	}
-
 	return Creature::startSoundInner(arg);
 
 	/*
@@ -1423,10 +1311,10 @@ JAISound* EnemyBase::startSoundInner(PSM::StartSoundArg& arg)
 	li       r3, 0
 	b        lbl_8045E860
 
-lbl_8045E85C:
+	lbl_8045E85C:
 	bl       startSoundInner__Q23PSM8CreatureFRQ23PSM13StartSoundArg
 
-lbl_8045E860:
+	lbl_8045E860:
 	lwz      r0, 0x14(r1)
 	mtlr     r0
 	addi     r1, r1, 0x10
@@ -1497,9 +1385,10 @@ void EnemyBase::updateKehai()
 void EnemyBase::updateBattle()
 {
 	if (mGameObj->isAlive()) {
-		if (static_cast<Game::EnemyBase*>(mGameObj)->mSfxEmotion == 2 && !BattleLink::mList) {
+		Game::EnemyBase* obj = static_cast<Game::EnemyBase*>(mGameObj);
+		if (obj->mSfxEmotion == 2 && !BattleLink::mList) {
 			battleOn();
-		} else if (static_cast<Game::EnemyBase*>(mGameObj)->mSfxEmotion != 2 && BattleLink::mList) {
+		} else if (obj->mSfxEmotion != 2 && BattleLink::mList) {
 			battleOff();
 		}
 	} else {
@@ -1578,16 +1467,19 @@ bool EnemyBase::calcKehai()
 		return false;
 	}
 
-	Vector3f* enemypos = enemy->getSound_PosPtr();
+	Vec& enemypos = *(Vec*)enemy->getSound_PosPtr();
 	Iterator<Game::Navi> iterator(Game::naviMgr);
 	CI_LOOP(iterator)
 	{
 		Game::Navi* navi = *iterator;
 		if (navi->mController1) {
-			Vector3f pos  = navi->getPosition();
-			Vector3f pos2 = *enemypos;
-			if (judgeNearWithPlayer(*(Vec*)&pos2, *(Vec*)&pos, CreaturePrm::cVolZeroDist_Kehai[getCastType()],
-			                        CreaturePrm::cVolZeroDist_InnerSize_Kehai[getCastType()])) {
+			Vector3f pos = navi->getPosition();
+			volatile Vec pos2;
+			pos2.x = pos.x;
+			pos2.y = pos.y;
+			pos2.z = pos.z;
+			if (judgeNearWithPlayer(enemypos, *(Vec*)&pos, CreaturePrm::cVolZeroDist_Kehai[getCastType() - 2],
+			                        CreaturePrm::cVolZeroDist_InnerSize_Kehai[getCastType() - 2])) {
 				return true;
 			}
 		}
@@ -1831,20 +1723,25 @@ lbl_8045EEB8:
  * @note Address: 0x8045EED8
  * @note Size: 0x94
  */
-bool EnemyBase::judgeNearWithPlayer(const Vec& pos1, const Vec& pos2, f32 a1, f32 a2)
+bool EnemyBase::judgeNearWithPlayer(const Vec& enemyPosition, const Vec& naviPosition, f32 distanceX, f32 distanceY)
 {
-	f32 x = pos1.x - pos2.x;
-	x     = (x >= 0.0f) ? x : -x;
-	if (x < a1) {
-		x = pos1.y - pos2.y;
+	f32 x = enemyPosition.x - naviPosition.x;
+	if (!(x >= 0.0f)) {
+		x = -x;
+	}
+
+	if (x < distanceX) {
+		x = enemyPosition.y - naviPosition.y;
 		x = (x >= 0.0f) ? x : -x;
-		if (x < a1) {
-			x = pos1.z - pos2.z;
+
+		if (x < distanceX) {
+			x = enemyPosition.z - naviPosition.z;
 			x = (x >= 0.0f) ? x : -x;
-			if (x < a1)
+			if (x < distanceX)
 				return true;
 		}
 	}
+
 	return false;
 	/*
 	lfs      f3, 0(r4)
@@ -1916,8 +1813,8 @@ EnemyNotAggressive::EnemyNotAggressive(Game::EnemyBase* gameObj, u8 p2)
  */
 Tsuyukusa::Tsuyukusa(Game::Creature* gameObj)
     : CreatureObj(gameObj, 2)
-    , _70(FALSE)
-    , _74(gameObj)
+    , mIsEnabled(FALSE)
+    , mLink(gameObj)
 {
 	P2ASSERTLINE(1078, gameObj);
 }
@@ -1930,68 +1827,12 @@ void Tsuyukusa::noukouFrameWork(bool enable)
 {
 	PSM::ListDirectorActor* actor = PSMGetGroundD()->mActor;
 	P2ASSERTLINE(1086, actor);
-	if (enable == true) {
-		if (_70 == 0) {
-			actor->append(&_74);
-		}
-	} else if (!enable && _70 == TRUE) {
-		actor->remove(&_74);
+	if (enable == true && mIsEnabled == 0) {
+		actor->append(&mLink);
+	} else if (!enable && mIsEnabled == true) {
+		actor->remove(&mLink);
 	}
-	_70 = enable;
-	/*
-	stwu     r1, -0x20(r1)
-	mflr     r0
-	stw      r0, 0x24(r1)
-	stw      r31, 0x1c(r1)
-	stw      r30, 0x18(r1)
-	mr       r30, r4
-	stw      r29, 0x14(r1)
-	mr       r29, r3
-	bl       PSMGetGroundD__Fv
-	lwz      r31, 0x64(r3)
-	cmplwi   r31, 0
-	bne      lbl_8045F2C4
-	lis      r3, lbl_8049CFA0@ha
-	lis      r5, lbl_8049CFB8@ha
-	addi     r3, r3, lbl_8049CFA0@l
-	li       r4, 0x43e
-	addi     r5, r5, lbl_8049CFB8@l
-	crclr    6
-	bl       panic_f__12JUTExceptionFPCciPCce
-
-lbl_8045F2C4:
-	clrlwi   r0, r30, 0x18
-	cmplwi   r0, 1
-	bne      lbl_8045F2EC
-	lwz      r0, 0x70(r29)
-	cmpwi    r0, 0
-	bne      lbl_8045F2EC
-	addi     r3, r31, 0xc
-	addi     r4, r29, 0x74
-	bl       append__10JSUPtrListFP10JSUPtrLink
-	b        lbl_8045F30C
-
-lbl_8045F2EC:
-	clrlwi.  r0, r30, 0x18
-	bne      lbl_8045F30C
-	lwz      r0, 0x70(r29)
-	cmpwi    r0, 1
-	bne      lbl_8045F30C
-	addi     r3, r31, 0xc
-	addi     r4, r29, 0x74
-	bl       remove__10JSUPtrListFP10JSUPtrLink
-
-lbl_8045F30C:
-	clrlwi   r0, r30, 0x18
-	stw      r0, 0x70(r29)
-	lwz      r0, 0x24(r1)
-	lwz      r31, 0x1c(r1)
-	lwz      r30, 0x18(r1)
-	lwz      r29, 0x14(r1)
-	mtlr     r0
-	addi     r1, r1, 0x20
-	blr
-	*/
+	mIsEnabled = enable;
 }
 
 /**
@@ -2566,7 +2407,7 @@ void EnemyBigBoss::jumpRequest(u16 state)
 void EnemyBigBoss::onDeathMotionTop()
 {
 	_E8 = 0;
-	jumpRequest(PSM::EnemyBigBoss::BigBossBgm_Defeated);
+	jumpRequest(BigBossBgm_Defeated);
 }
 
 /**
@@ -2681,8 +2522,7 @@ ActorDirector_TrackOn* OtakaraEventLink_2PBattle::getTargetDirector()
 	Otakara* obj = static_cast<Otakara*>(getObject()->getPSCreature());
 	P2ASSERTLINE(1701, obj);
 
-	P2ASSERTBOOLLINE(1706,
-	                 obj->getCastType() == CCT_PelletOtakara || obj->getCastType() == CCT_PelletItem || obj->getCastType() == CCT_Otakara);
+	P2ASSERTLINE(1706, obj->isTreasure());
 
 	Game::Onyon* onyon           = obj->mOnyon;
 	ActorDirector_TrackOn* actor = nullptr;
@@ -2734,157 +2574,14 @@ void OtakaraEventLink_2PBattle::eventStart()
 	Otakara* obj = static_cast<Otakara*>(getObject()->getPSCreature());
 	P2ASSERTLINE(1701, obj);
 
-	P2ASSERTBOOLLINE(1706,
-	                 obj->getCastType() == CCT_PelletOtakara || obj->getCastType() == CCT_PelletItem || obj->getCastType() == CCT_Otakara);
+	P2ASSERTLINE(1706, obj->isTreasure());
 
-	bool test = true;
-	u32 type  = obj->mBedamaType;
-	if (type - 2 <= 1 || (int)type == Otakara::PSMBedama_Yellow) {
-		test = true;
-	} else if (type - 1 <= 2 || (int)type == Otakara::PSMBedama_Yellow) {
-		if (obj->mBedamaType == Otakara::PSMBedama_None) {
-			test = true;
-		} else {
-			test = false;
-		}
-	} else {
-		test = false;
-	}
-
-	if (!test) {
+	if (!obj->canFinish()) {
 		ActorDirector_TrackOn* director = getTargetDirector();
 		if (director->mActor) {
 			static_cast<ListDirectorActor*>(director->mActor)->append(this);
 		}
 	}
-
-	/*
-	stwu     r1, -0x20(r1)
-	mflr     r0
-	stw      r0, 0x24(r1)
-	stw      r31, 0x1c(r1)
-	mr       r31, r3
-	stw      r30, 0x18(r1)
-	stw      r29, 0x14(r1)
-	lwz      r0, 0(r3)
-	cmplwi   r0, 0
-	bne      lbl_804611A4
-	lis      r3, lbl_8049CFA0@ha
-	lis      r5, lbl_8049CFB8@ha
-	addi     r3, r3, lbl_8049CFA0@l
-	li       r4, 0x6a3
-	addi     r5, r5, lbl_8049CFB8@l
-	crclr    6
-	bl       panic_f__12JUTExceptionFPCciPCce
-
-lbl_804611A4:
-	lwz      r3, 0(r31)
-	lwz      r12, 0(r3)
-	lwz      r12, 0xf8(r12)
-	mtctr    r12
-	bctrl
-	or.      r29, r3, r3
-	bne      lbl_804611DC
-	lis      r3, lbl_8049CFA0@ha
-	lis      r5, lbl_8049CFB8@ha
-	addi     r3, r3, lbl_8049CFA0@l
-	li       r4, 0x6a5
-	addi     r5, r5, lbl_8049CFB8@l
-	crclr    6
-	bl       panic_f__12JUTExceptionFPCciPCce
-
-lbl_804611DC:
-	mr       r3, r29
-	li       r30, 0
-	lwz      r12, 0x28(r29)
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	cmpwi    r3, 0xc
-	beq      lbl_80461234
-	mr       r3, r29
-	lwz      r12, 0x28(r29)
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	cmpwi    r3, 0xd
-	beq      lbl_80461234
-	mr       r3, r29
-	lwz      r12, 0x28(r29)
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	cmpwi    r3, 0xb
-	bne      lbl_80461238
-
-lbl_80461234:
-	li       r30, 1
-
-lbl_80461238:
-	clrlwi.  r0, r30, 0x18
-	bne      lbl_8046125C
-	lis      r3, lbl_8049CFA0@ha
-	lis      r5, lbl_8049CFB8@ha
-	addi     r3, r3, lbl_8049CFA0@l
-	li       r4, 0x6aa
-	addi     r5, r5, lbl_8049CFB8@l
-	crclr    6
-	bl       panic_f__12JUTExceptionFPCciPCce
-
-lbl_8046125C:
-	lwz      r3, 0x70(r29)
-	addi     r0, r3, -2
-	cmplwi   r0, 1
-	ble      lbl_80461274
-	cmpwi    r3, 4
-	bne      lbl_8046127C
-
-lbl_80461274:
-	li       r0, 1
-	b        lbl_804612B0
-
-lbl_8046127C:
-	addi     r0, r3, -1
-	cmplwi   r0, 2
-	ble      lbl_80461290
-	cmpwi    r3, 4
-	bne      lbl_804612AC
-
-lbl_80461290:
-	lwz      r0, 0x74(r29)
-	cmplwi   r0, 0
-	bne      lbl_804612A4
-	li       r0, 1
-	b        lbl_804612B0
-
-lbl_804612A4:
-	li       r0, 0
-	b        lbl_804612B0
-
-lbl_804612AC:
-	li       r0, 0
-
-lbl_804612B0:
-	clrlwi.  r0, r0, 0x18
-	bne      lbl_804612D8
-	mr       r3, r31
-	bl       getTargetDirector__Q23PSM25OtakaraEventLink_2PBattleFv
-	lwz      r3, 0x54(r3)
-	cmplwi   r3, 0
-	beq      lbl_804612D8
-	mr       r4, r31
-	addi     r3, r3, 0xc
-	bl       append__10JSUPtrListFP10JSUPtrLink
-
-lbl_804612D8:
-	lwz      r0, 0x24(r1)
-	lwz      r31, 0x1c(r1)
-	lwz      r30, 0x18(r1)
-	lwz      r29, 0x14(r1)
-	mtlr     r0
-	addi     r1, r1, 0x20
-	blr
-	*/
 }
 
 /**
@@ -2904,158 +2601,14 @@ void OtakaraEventLink_2PBattle::eventStop()
 	Otakara* obj = static_cast<Otakara*>(getObject()->getPSCreature());
 	P2ASSERTLINE(1701, obj);
 
-	P2ASSERTBOOLLINE(1706,
-	                 obj->getCastType() == CCT_PelletOtakara || obj->getCastType() == CCT_PelletItem || obj->getCastType() == CCT_Otakara);
+	P2ASSERTLINE(1706, obj->isTreasure());
 
-	// this whole mess might be an inline
-	bool test = true;
-	u32 type  = obj->mBedamaType;
-	if (type - 2 <= 1 || (int)type == Otakara::PSMBedama_Yellow) {
-		test = true;
-	} else if (type - 1 <= 2 || (int)type == Otakara::PSMBedama_Yellow) {
-		if (obj->mBedamaType == Otakara::PSMBedama_None) {
-			test = true;
-		} else {
-			test = false;
-		}
-	} else {
-		test = false;
-	}
-
-	if (!test) {
+	if (!obj->canFinish()) {
 		ActorDirector_TrackOn* director = getTargetDirector();
 		if (director->mActor) {
-			static_cast<ListDirectorActor*>(director->mActor)->append(this);
+			static_cast<ListDirectorActor*>(director->mActor)->remove(this);
 		}
 	}
-
-	/*
-	stwu     r1, -0x20(r1)
-	mflr     r0
-	stw      r0, 0x24(r1)
-	stw      r31, 0x1c(r1)
-	mr       r31, r3
-	stw      r30, 0x18(r1)
-	stw      r29, 0x14(r1)
-	lwz      r0, 0(r3)
-	cmplwi   r0, 0
-	bne      lbl_80461364
-	lis      r3, lbl_8049CFA0@ha
-	lis      r5, lbl_8049CFB8@ha
-	addi     r3, r3, lbl_8049CFA0@l
-	li       r4, 0x6a3
-	addi     r5, r5, lbl_8049CFB8@l
-	crclr    6
-	bl       panic_f__12JUTExceptionFPCciPCce
-
-lbl_80461364:
-	lwz      r3, 0(r31)
-	lwz      r12, 0(r3)
-	lwz      r12, 0xf8(r12)
-	mtctr    r12
-	bctrl
-	or.      r29, r3, r3
-	bne      lbl_8046139C
-	lis      r3, lbl_8049CFA0@ha
-	lis      r5, lbl_8049CFB8@ha
-	addi     r3, r3, lbl_8049CFA0@l
-	li       r4, 0x6a5
-	addi     r5, r5, lbl_8049CFB8@l
-	crclr    6
-	bl       panic_f__12JUTExceptionFPCciPCce
-
-lbl_8046139C:
-	mr       r3, r29
-	li       r30, 0
-	lwz      r12, 0x28(r29)
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	cmpwi    r3, 0xc
-	beq      lbl_804613F4
-	mr       r3, r29
-	lwz      r12, 0x28(r29)
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	cmpwi    r3, 0xd
-	beq      lbl_804613F4
-	mr       r3, r29
-	lwz      r12, 0x28(r29)
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	cmpwi    r3, 0xb
-	bne      lbl_804613F8
-
-lbl_804613F4:
-	li       r30, 1
-
-lbl_804613F8:
-	clrlwi.  r0, r30, 0x18
-	bne      lbl_8046141C
-	lis      r3, lbl_8049CFA0@ha
-	lis      r5, lbl_8049CFB8@ha
-	addi     r3, r3, lbl_8049CFA0@l
-	li       r4, 0x6aa
-	addi     r5, r5, lbl_8049CFB8@l
-	crclr    6
-	bl       panic_f__12JUTExceptionFPCciPCce
-
-lbl_8046141C:
-	lwz      r3, 0x70(r29)
-	addi     r0, r3, -2
-	cmplwi   r0, 1
-	ble      lbl_80461434
-	cmpwi    r3, 4
-	bne      lbl_8046143C
-
-lbl_80461434:
-	li       r0, 1
-	b        lbl_80461470
-
-lbl_8046143C:
-	addi     r0, r3, -1
-	cmplwi   r0, 2
-	ble      lbl_80461450
-	cmpwi    r3, 4
-	bne      lbl_8046146C
-
-lbl_80461450:
-	lwz      r0, 0x74(r29)
-	cmplwi   r0, 0
-	bne      lbl_80461464
-	li       r0, 1
-	b        lbl_80461470
-
-lbl_80461464:
-	li       r0, 0
-	b        lbl_80461470
-
-lbl_8046146C:
-	li       r0, 0
-
-lbl_80461470:
-	clrlwi.  r0, r0, 0x18
-	bne      lbl_80461498
-	mr       r3, r31
-	bl       getTargetDirector__Q23PSM25OtakaraEventLink_2PBattleFv
-	lwz      r3, 0x54(r3)
-	cmplwi   r3, 0
-	beq      lbl_80461498
-	mr       r4, r31
-	addi     r3, r3, 0xc
-	bl       remove__10JSUPtrListFP10JSUPtrLink
-
-lbl_80461498:
-	lwz      r0, 0x24(r1)
-	lwz      r31, 0x1c(r1)
-	lwz      r30, 0x18(r1)
-	lwz      r29, 0x14(r1)
-	mtlr     r0
-	addi     r1, r1, 0x20
-	blr
-	*/
 }
 
 /**
@@ -3075,106 +2628,11 @@ ListDirectorActor* OtakaraEventLink_2PBattle::getListDirectorActor()
 	Otakara* obj = static_cast<Otakara*>(getObject()->getPSCreature());
 	P2ASSERTLINE(1701, obj);
 
-	P2ASSERTBOOLLINE(1706,
-	                 obj->getCastType() == CCT_PelletOtakara || obj->getCastType() == CCT_PelletItem || obj->getCastType() == CCT_Otakara);
+	P2ASSERTLINE(1706, obj->isTreasure());
 
 	P2ASSERTLINE(1891, (int)obj->mBedamaType == Otakara::PSMBedama_None);
 
 	return (ListDirectorActor*)PSMGetOtakaraEventD()->mActor;
-	/*
-	stwu     r1, -0x10(r1)
-	mflr     r0
-	stw      r0, 0x14(r1)
-	stw      r31, 0xc(r1)
-	stw      r30, 8(r1)
-	mr       r30, r3
-	lwz      r0, 0(r3)
-	cmplwi   r0, 0
-	bne      lbl_80461520
-	lis      r3, lbl_8049CFA0@ha
-	lis      r5, lbl_8049CFB8@ha
-	addi     r3, r3, lbl_8049CFA0@l
-	li       r4, 0x6a3
-	addi     r5, r5, lbl_8049CFB8@l
-	crclr    6
-	bl       panic_f__12JUTExceptionFPCciPCce
-
-lbl_80461520:
-	lwz      r3, 0(r30)
-	lwz      r12, 0(r3)
-	lwz      r12, 0xf8(r12)
-	mtctr    r12
-	bctrl
-	or.      r30, r3, r3
-	bne      lbl_80461558
-	lis      r3, lbl_8049CFA0@ha
-	lis      r5, lbl_8049CFB8@ha
-	addi     r3, r3, lbl_8049CFA0@l
-	li       r4, 0x6a5
-	addi     r5, r5, lbl_8049CFB8@l
-	crclr    6
-	bl       panic_f__12JUTExceptionFPCciPCce
-
-lbl_80461558:
-	mr       r3, r30
-	li       r31, 0
-	lwz      r12, 0x28(r30)
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	cmpwi    r3, 0xc
-	beq      lbl_804615B0
-	mr       r3, r30
-	lwz      r12, 0x28(r30)
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	cmpwi    r3, 0xd
-	beq      lbl_804615B0
-	mr       r3, r30
-	lwz      r12, 0x28(r30)
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	cmpwi    r3, 0xb
-	bne      lbl_804615B4
-
-lbl_804615B0:
-	li       r31, 1
-
-lbl_804615B4:
-	clrlwi.  r0, r31, 0x18
-	bne      lbl_804615D8
-	lis      r3, lbl_8049CFA0@ha
-	lis      r5, lbl_8049CFB8@ha
-	addi     r3, r3, lbl_8049CFA0@l
-	li       r4, 0x6aa
-	addi     r5, r5, lbl_8049CFB8@l
-	crclr    6
-	bl       panic_f__12JUTExceptionFPCciPCce
-
-lbl_804615D8:
-	lwz      r0, 0x70(r30)
-	cmpwi    r0, 0
-	beq      lbl_80461600
-	lis      r3, lbl_8049CFA0@ha
-	lis      r5, lbl_8049CFB8@ha
-	addi     r3, r3, lbl_8049CFA0@l
-	li       r4, 0x763
-	addi     r5, r5, lbl_8049CFB8@l
-	crclr    6
-	bl       panic_f__12JUTExceptionFPCciPCce
-
-lbl_80461600:
-	bl       PSMGetOtakaraEventD__Fv
-	lwz      r0, 0x14(r1)
-	lwz      r31, 0xc(r1)
-	lwz      r3, 0x54(r3)
-	lwz      r30, 8(r1)
-	mtlr     r0
-	addi     r1, r1, 0x10
-	blr
-	*/
 }
 
 /**
@@ -3699,13 +3157,12 @@ lbl_80462D80:
  */
 int Navi::getManType()
 {
-	u32 id = mRappa.mId;
-	if (id == 13) {
+	if (mRappa.mId == 13) {
 		return 0;
 	}
 
-	if (id == 14) {
-		return 1;
+	if (mRappa.mId == 14) {
+		return 4; // should be 1 but everything breaks
 	}
 	return 2;
 	/*
@@ -3730,20 +3187,11 @@ lbl_80462DB0:
  */
 JAISound* Navi::playShugoSE()
 {
-	u32 id = getManType();
-
 	u32 sound;
-	if (id == 0) {
+	if (getManType() == 0) {
 		sound = PSSE_PL_SHUGO;
 	} else {
-		if (id == 13) {
-			sound = 0;
-		} else if (id == 14) {
-			sound = 1;
-		} else {
-			sound = 2;
-		}
-		sound = sound + 0xa0;
+		sound = (getManType() - 1 == 1) + 0xa0;
 	}
 	return startSound(sound, 0);
 
@@ -3813,20 +3261,11 @@ lbl_80462E40:
  */
 JAISound* Navi::playKaisanSE()
 {
-	u32 id = getManType();
-
 	u32 sound;
-	if (id == 0) {
+	if (getManType() == 0) {
 		sound = PSSE_PL_KAISAN;
 	} else {
-		if (id == 13) {
-			sound = 0;
-		} else if (id == 14) {
-			sound = 1;
-		} else {
-			sound = 2;
-		}
-		sound = (sound == 1) + PSSE_PL_KAISAN_SHACHO;
+		sound = ((getManType() - 1) == 1) + PSSE_PL_KAISAN_SHACHO;
 	}
 	return startSound(sound, 0);
 	/*
@@ -3895,14 +3334,17 @@ lbl_80462EE0:
  */
 void Navi::playWalkSound(PSM::Navi::FootType type, int id)
 {
-	bool test             = type;
-	PSGame::RandId randid = PSSystem::getSeMgrInstance()->mRandid;
+	int test               = type + (id * 2);
+	PSGame::RandId& randid = PSSystem::getSeMgrInstance()->mRandid;
+
 	if (static_cast<Game::Navi*>(mGameObj)->isWalking()) {
 		stopWaitVoice();
 	}
+
 	randid.mId   = 0.7f;
-	JAISe* sound = randid.startSound(this, test + id * 2, 2, 0);
+	JAISe* sound = randid.startSound(this, test, 2, 0);
 	randid.mId   = -1.0f;
+
 	if (sound) {
 		sound->setPortData(10, getManType());
 	}
@@ -4019,7 +3461,7 @@ void PSSetCurCameraNo(u8 cams)
  * @note Address: 0x80463244
  * @note Size: 0x8
  */
-f32 PSMGetNoukouDist() { return PSM::CreaturePrm::cNokouDistance; }
+f32 PSMGetNoukouDist() { return PSM::CreaturePrm::cNoukouDistance; }
 
 /**
  * @note Address: 0x8046324C

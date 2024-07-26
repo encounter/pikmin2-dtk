@@ -63,7 +63,7 @@ s32 getWaveLoadStatus(s32);
 void checkAllWaveLoadStatus();
 
 extern union Flags {
-	u16 asShort;
+	u8 asByte;
 	struct {
 		bool _7 : 1;
 		bool _6 : 1;
@@ -77,6 +77,9 @@ extern LoadCallback secondLoadCallback;
 extern s32* wsGroupNumber;
 extern s32* wsLoadStatus;
 extern int wsMax;
+
+inline int getSceneSetFlag() { return SceneSetFlag; }
+
 } // namespace BankWave
 } // namespace JAInter
 

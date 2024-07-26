@@ -19,10 +19,6 @@ struct OSContext;
 struct _GXRenderModeObj;
 struct HeapStatus;
 
-void Pikmin2DefaultMemoryErrorRoutine(void*, u32, s32);
-void kando_panic_f(bool, const char*, s32, const char*, ...);
-extern void preUserCallback(u16, OSContext*, u32, u32);
-
 struct HeapInfo : public Node, public JKRDisposer {
 
 	virtual ~HeapInfo(); // _20 (weak)
@@ -115,8 +111,8 @@ struct System : public OSMutex {
 	struct GXVerifyArg {
 		GXVerifyArg();
 
-		u32 _00; // _00
-		u8 _04;  // _04
+		u32 mUnused00; // _00
+		u8 mUnused04;  // _04
 	};
 
 	System();

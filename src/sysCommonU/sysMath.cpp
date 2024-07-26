@@ -23,26 +23,15 @@ f32 pikmin2_sinf(f32 x) { return sinf(x); }
  */
 f32 pikmin2_cosf(f32 x) { return cosf(x); }
 
-/**
- * @note Address: N/A
- * @note Size: 0xF4
- */
-f32 pikmin2_acosf(f32 x) { return acosfDumb(x); }
-
-/**
- * @note Address: N/A
- * @note Size: 0xFC
- */
-f32 pikmin2_asinf(f32 x)
+f32 acosfDumb(f32 x)
 {
-	if (x >= 1.0f) {
+	// not right but it's a start
+	if (x <= -1.0f) {
 		return 0.0f;
 	}
-	if (x <= -1.0f) {
+	if (x >= 1.0f) {
 		return PI;
 	}
-
-	// this is wrong, but it'll be a small modification on the acos one
 	if (x < 0.0f) {
 		f32 dumb = HALF_PI;
 		f32 acos = JMath::asinAcosTable_.mTable[(u32)(-x * 1023.5f)];
@@ -50,6 +39,30 @@ f32 pikmin2_asinf(f32 x)
 	} else {
 		return HALF_PI - JMath::asinAcosTable_.mTable[(u32)(x * 1023.5f)];
 	}
+}
+
+/**
+ * @note Address: N/A
+ * @note Size: 0xF4
+ */
+f32 pikmin2_acosf(f32 x)
+{
+	if (x < -1.0f || x > 1.0f) {
+		JUT_PANICLINE(65, "acosf %f\n", x);
+	}
+	return JMath::asinAcosTable_.acos_(x);
+}
+
+/**
+ * @note Address: N/A
+ * @note Size: 0xFC
+ */
+const f32 pikmin2_asinf(f32 x)
+{
+	// if (x < -1.0f || x > 1.0f) {
+	// 	JUT_PANICLINE(65, "acosf %f\n", x);
+	// }
+	// return JMath::asinAcosTable_.asin_(x);
 }
 
 /**
@@ -70,7 +83,7 @@ f32 pikmin2_sqrtf(register f32 x)
 		register f32 reg_f0;
 #ifdef __MWERKS__ // clang-format off
 		asm { frsqrte reg_f0, x }
-#endif // clang-format off
+#endif // clang-format on
 		return reg_f0 * x;
 	}
 	return x;
@@ -82,15 +95,15 @@ f32 pikmin2_sqrtf(register f32 x)
  */
 f32 qdist2(f32 x1, f32 y1, f32 x2, f32 y2)
 {
+	f32 deltaX = x2 - x1;
+	f32 deltaY = y2 - y1;
 
-	f32 xdiff = (x2 - x1);
-	f32 ydiff = (y2 - y1);
-
-	f32 dist = ((xdiff * xdiff) + (ydiff * ydiff));
+	f32 dist = SQUARE(deltaX) + SQUARE(deltaY);
 	if (dist > 0.0f) {
 		vf32 calcDist = dist * (__frsqrte(dist));
-		dist                  = calcDist;
+		dist          = calcDist;
 	}
+
 	return dist;
 }
 
@@ -100,17 +113,8 @@ f32 qdist2(f32 x1, f32 y1, f32 x2, f32 y2)
  */
 f32 qdist3(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2)
 {
-	f32 xdiff = (x2 - x1);
-	f32 ydiff = (y2 - y1);
-	f32 zdiff = (z2 - z1);
-
-	return pikmin2_sqrtf(((xdiff * xdiff) + (ydiff * ydiff) + (zdiff * zdiff)));
-	// f32 dist = ((xdiff * xdiff) + (ydiff * ydiff) + (zdiff * zdiff));
-	// if (dist > 0.0f) {
-	// 	vf32 calcDist = dist * (__frsqrte(dist));
-	// 	dist                    = calcDist;
-	// }
-	// return dist;
+	Vector3f xyz(x2 - x1, y2 - y1, z2 - z1);
+	return xyz.qLength();
 }
 
 /**
@@ -126,34 +130,34 @@ Vector3f CRSpline(f32 t, Vector3f* controls)
 }
 
 /**
+ * Calculates the tangent of a Catmull-Rom spline at a given parameter value.
+ *
+ * @param t The parameter value of the spline (between 0 and 1).
+ * @param controls An array of four control points that define the spline.
+ * @return The tangent vector at the given parameter value.
+ *
  * @note Address: 0x80411858
  * @note Size: 0xF4
  */
 Vector3f CRSplineTangent(f32 t, Vector3f* controls)
-/* == Centripetal Catmull-Rom Spline tangent calculation ==
-Outputs tangent vector of desired point, given:
-- coords for a set of 4 control points (controls[0] to controls[4]) for the curve, and
-- a parameter for the curve, t, between 0 and 1
-    - t represents how 'far' between controls[1] and controls[2] the desired point is
-    - so t=0, point will be controls[1]; t=1, point will be controls[2]
-*/
 {
 	f32 tSqr = t * t;
 	Vector3f out;
 
-	// set coefficients - the floats are from centripetal CR matrices, assuming no tension
-	// (this is actually just drawn out matrix multiplication)
+	// Calculate the 4 basis functions for the Catmull-Rom spline
 	f32 f0 = (-1.5f * tSqr) + (2.0f * t) - 0.5f;
 	f32 f1 = (4.5f * tSqr) - 5.0f * t;
 	f32 f2 = (-4.5f * tSqr) + (4.0f * t) + 0.5f;
 	f32 f3 = (1.5f * tSqr) - t;
 
+	// Multiply each control point by its corresponding basis function
 	Vector3f ctr0 = controls[0] * f0;
 	Vector3f ctr1 = controls[1] * f1;
 	Vector3f ctr2 = controls[2] * f2;
 	Vector3f ctr3 = controls[3] * f3;
-	out           = ctr0 + ctr1 + ctr2 + ctr3;
 
+	// Add the results together to get the tangent
+	out = ctr0 + ctr1 + ctr2 + ctr3;
 	return out;
 }
 
@@ -295,146 +299,56 @@ void Matrix3f::makeIdentity()
  * @note Address: 0x80411CA0
  * @note Size: 0x728
  */
-void Matrix3f::calcEigenMatrix(Matrix3f& D, Matrix3f& P)
+void Matrix3f::calcEigenMatrix(Matrix3f& diagMtx, Matrix3f& eigenMtx)
 {
-	/*  Diagonalises matrix (M), producing a diagonal matrix D, and an orthogonal matrix P
-	 -- assumption is matrices D and P are both just 'locations' to store the outputs
-	 -- D = P * M * transpose(P)
-	 -- Diagonal elements of D are (approx) eigenvalues of M
-	 -- Corresponding columns of P are (approx) eigenvectors of M for each eigenvalue
-	 -- uses Jacobi algorithm with max 50 iterations for convergence
-	 -- Matrix M assumed to be symmetric and diagonalisable
-	*/
-	// make initial outputs
-	// initial D is just the 'input' matrix, i.e. what this is called on
-	D = *this;
-	// initial P is the identity (matrix equivalent of '1')
-	P.makeIdentity(); // P is 0x50(r1)
+	diagMtx = *this;
+	eigenMtx.makeIdentity();
 
-	// declare some matrices we'll use to store stuff as we go
-	Matrix3f J;     // this is 0x128(r1), Jacobi rotation
-	Matrix3f J_int; // this is 0x104(r1), what we'll store successive matrix multiplication in
-	Matrix3f T;     // this is 0xe0(r1), transpose of Jacobi rotation
-	// 0x50, 0xbc = side-products of MM1
-	// 0x2c, 0x98 = side-products of MM2
-	// 0x8, 0x74 = side-products of MM3
+	Matrix3f jacobiMtx;
+	Matrix3f intermediateMtx;
+	Matrix3f transposeMtx;
 
-	f32 conv_thresh = 0.01f; // want off-diags to be smaller than this, effectively
-	bool hasConverged;
-
-	// actual Jacobi algorithm - repeat this 50x or until convergence threshold is reached
-	for (int conv_ctr = 0; conv_ctr < 50; conv_ctr++) {
-		hasConverged = D.isDiagonal(conv_thresh);
-		// check if elements are sufficient diagonal - if so, make them 0 and end; if not, we get to work
-		if (!hasConverged) {
-			// time to calculate some Jacobi rotation matrices
-			// go through each off-diagonal term and check if it needs work
-
-			// THIS SECTION ONWARD IS STILL DODGY REG-WISE
-
-			// int row_col = 0; // r24
-			// f32 *D_r19 = &D.mMatrix[0][0];
-			// f32 *J_r25 = &J.mMatrix[0][0];
-			// int row_OD = 0; // r3
-			// int row_row = row_col; // r23
-
-			// row_OD = row of off-diagonal we're looking at (row 0 for first and second, row 1 for third)
-			for (int row_OD = 0; row_OD < 2; row_OD++) {
-				// for (row_OD; row_OD < 2; row_OD++) {
-
-				// int col_OD = row_OD + 1; // r6
-				// f32 *J_r27 = &J.mMatrix[0][0];
-				// int col_row = col_OD * (0xc); // r21
-				// int col_col = col_OD; // r22
-				// f32 *D_r28 = D_r19 + col_col;
-				// f32 *J_r26 = J_r25 + col_col;
-				// J_r27 += col_row;
-
-				// col_OD = col of off-diagonal we're looking at (col 1 for first, col 2 for second and third)
-				for (int col_OD = row_OD + 1; col_OD < 3; col_OD++) {
-					// for (col_OD; col_OD < 3; col_OD++) {
-					// f32 D_row_col = *(D_r28);
-					if (!(D.mMatrix[row_OD][col_OD] < conv_thresh)) { // if this off-diagonal element is still too big
-						// if (!(D_row_col < conv_thresh)) { // if this off-diagonal element is still too big
-						J = D; // start with the attempted 'diagonal' matrix
-
-						// Jacobi rotation matrix requires cos(theta) and sin(theta) to be calculated
-						// so the rotation is the 'correct' one to get us closer to being diagonal
-						// the main things about this calc are c_theta and s_theta, most of this is just
-						// to make sure we're not doing dumb complex number math
-
-						// f32 y = (*(J_r27 + col_col) - *(J_r25 + row_col)) / (2.0f * *(&J_r26[0]));
-						// f32 y = (J.mMatrix[col_OD][col_OD] - J.mMatrix[row_OD][row_OD]) / (2.0f *
-						// J.mMatrix[row_OD][col_OD]);
-						f32 y = J.calcJacobi(row_OD, col_OD);
-						f32 r, t, d;
-						t           = (y > 0.0f) ? 1.0f / (y + pikmin2_sqrtf(y * y + 1.0f)) : (-1.0f / (-y + pikmin2_sqrtf(y * y + 1.0f)));
-						d           = pikmin2_sqrtf(t * t + 1.0f);
-						f32 c_theta = 1.0f / d;    //  cos(theta), for the diagonals
-						f32 s_theta = t * c_theta; // (minus?) sin(theta), for the off-diagonals
-
-						// Construct Jacobi rotation matrix
-						// make J identity first
-						J.makeIdentity();
-						// f32 *J_ptr_row = &J.mMatrix[row_OD][0];
-						// f32 *J_ptr_col = &J.mMatrix[col_OD][0];
-
-						// f32 *J_r30 = &J.mMatrix[0][0];
-						// f32 *J_r9 = J_r30 + row_row;
-						// f32 *J_r10 = J_r30 + col_row;
-
-						// replace 'inset' elements with cos or sin as required
-						J.createJacobi(row_OD, col_OD, c_theta, s_theta);
-						// createJacobi(J, row_row, row_col, col_row, col_col, c_theta, s_theta);
-						// *(J_r9 + row_col) = c_theta;
-						// *(J_r10 + col_col) = c_theta;
-						// *(J_r9 + col_col) = s_theta;
-						// *(J_r10 + row_col) = -s_theta;
-
-						// END DODGY SECTION - HERE OUT SEEMS FINE
-
-						// Matrix multiplication, round 1: M_1 = P * J
-						// this creates the updated P matrix, which is just
-						// all the Js so far, multiplied in order
-						// i.e. P = J1 * J2 * J3 * ... * J50, if we get that far
-						J_int = P * J;
-
-						// update P
-						P = J_int;
-
-						// make T = transpose of J, i.e. flip it along its diagonal
-						// J.makeTranspose(T);
-						for (int i = 0; i < 3; i++) {
-							for (int j = 0; j < 3; j++) {
-								T.mMatrix[i][j] = J.mMatrix[j][i];
-							}
-						}
-
-						// Matrix multiplication, round 2: M_2 = T * D
-						// this creates the left "half" of the multiplication
-						//   when updating D, store in M_2
-						J_int = T * D;
-
-						// Matrix multiplication, round 3: D = J_int * J!
-						// this finishes the right "half" of the multiplication
-						//   when updating D
-						D = J_int * J;
-
-					} // end if
-					  // D_r28 += 1;
-					  // col_col += 1;
-					  // J_r27 += 3;
-					  // J_r26 += 1;
-					  // col_row += 3;
-				}     // end col loop
-				      // J_r25 += 3;
-				      // row_col += 1;
-				      // row_row += 3;
-				      // D_r19 += 3;
-			}         // end row loop
-			          // if not diagonal, just move on to next one
-		} else {      // if diagonals are already sufficiently 0
+	for (int i = 0; i < 50; i++) {
+		f32 convThreshold = 0.01f;
+		if (diagMtx.isDiagonal(convThreshold)) {
 			break;
+		}
+
+		for (int row = 0; row < 2; row++) {
+			for (int col = row + 1; col < 3; col++) {
+				if (diagMtx.mMatrix[row][col] < convThreshold) {
+					continue;
+				}
+
+				jacobiMtx = diagMtx;
+
+				f32 offDiagonalElem = jacobiMtx.calcJacobi(row, col);
+
+				f32 tangentTheta = (offDiagonalElem > 0.0f)
+				                     ? 1.0f / (offDiagonalElem + pikmin2_sqrtf(offDiagonalElem * offDiagonalElem + 1.0f))
+				                     : (-1.0f / (-offDiagonalElem + pikmin2_sqrtf(offDiagonalElem * offDiagonalElem + 1.0f)));
+
+				f32 secantTheta = pikmin2_sqrtf(tangentTheta * tangentTheta + 1.0f);
+
+				f32 cosTheta = 1.0f / secantTheta;
+				f32 sinTheta = tangentTheta * secantTheta;
+
+				jacobiMtx.makeIdentity();
+				jacobiMtx.updateJacobiOffDiagonal(row, col, sinTheta);
+				jacobiMtx.updateJacobiDiagonal(row, col, cosTheta);
+
+				intermediateMtx = eigenMtx * jacobiMtx;
+				eigenMtx        = intermediateMtx;
+
+				for (int i = 0; i < 3; i++) {
+					for (int j = 0; j < 3; j++) {
+						transposeMtx.mMatrix[i][j] = jacobiMtx.mMatrix[j][i];
+					}
+				}
+
+				intermediateMtx = transposeMtx * diagMtx;
+				diagMtx         = intermediateMtx * jacobiMtx;
+			}
 		}
 	}
 }
@@ -460,19 +374,19 @@ void Quat::setAxisRotation(Vector3f& axis, f32 angle)
 	// NOTE: This is NOT TO MATCH ANYTHING, this is a LOGICAL EQUIVALENT to what it SHOULD BE!
 	// FOR MODDERS ONLY!
 #if FOR_MODDING
-    // Normalize the axis
-    axis.normalise();
+	// Normalize the axis
+	axis.normalise();
 
-    // Convert the angle from degrees to radians
-    f32 radianAngle = angle * (PI / 180.0f);
+	// Convert the angle from degrees to radians
+	f32 radianAngle = angle * (PI / 180.0f);
 
-    // Calculate the sin and cos of half the angle
-    f32 cosHalfAngle = pikmin2_cosf(radianAngle / 2.0f);
-    f32 sinHalfAngle = pikmin2_sinf(radianAngle / 2.0f);
+	// Calculate the sin and cos of half the angle
+	f32 cosHalfAngle = pikmin2_cosf(radianAngle / 2.0f);
+	f32 sinHalfAngle = pikmin2_sinf(radianAngle / 2.0f);
 
-    // Set the quaternion to represent the rotation
-    w = cosHalfAngle;
-    v = axis * sinHalfAngle;
+	// Set the quaternion to represent the rotation
+	w = cosHalfAngle;
+	v = axis * sinHalfAngle;
 #endif
 }
 
@@ -492,23 +406,9 @@ Quat::Quat(f32 _w, Vector3f vec)
  */
 Quat::Quat(RPY& rpy)
 {
-	FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE;
-	FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE;
-	FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE;
-	FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE;
-	FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE;
-	FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE;
-	FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE;
-	FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE;
-	FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE;
-	FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE;
-	FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE;
-	FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE; FORCE_DONT_INLINE;
-	Quat quat (0.0f, Vector3f(0.0f, 0.0f, 0.0f));
-	Quat quat2 (0.0f, Vector3f(0.0f, 0.0f, 0.0f));
+	Quat quat(0.0f, Vector3f(0.0f, 0.0f, 0.0f));
+	Quat quat2(0.0f, Vector3f(0.0f, 0.0f, 0.0f));
 	*this = quat * quat2;
-	// this needs to spawn the operator* weak function somehow
-	// probably is recursive? this will do for now to match it
 }
 
 /**
@@ -517,24 +417,24 @@ Quat::Quat(RPY& rpy)
  */
 void Quat::set(Vector3f& vec)
 {
-	Quat q1; // 0x48
-	Quat q2; // 0x38
-	Quat q3; // 0x28
+	Quat quatX;
+	Quat quatY;
+	Quat quatZ;
 
-	f32 cos_x = cos(0.5f * vec.x);
-	f32 sin_x = pikmin2_sinf(0.5f * vec.x);
-	q1.set(cos_x, sin_x, 0.0f, 0.0f);
+	f32 cosHalfX = cos(0.5f * vec.x);
+	f32 sinHalfX = pikmin2_sinf(0.5f * vec.x);
+	quatX.set(cosHalfX, sinHalfX, 0.0f, 0.0f);
 
-	f32 cos_y = cos(0.5f * vec.y);
-	f32 sin_y = pikmin2_sinf(0.5f * vec.y);
-	q2.set(cos_y, 0.0f, sin_y, 0.0f);
+	f32 cosHalfY = cos(0.5f * vec.y);
+	f32 sinHalfY = pikmin2_sinf(0.5f * vec.y);
+	quatY.set(cosHalfY, 0.0f, sinHalfY, 0.0f);
 
-	f32 cos_z = cos(0.5f * vec.z);
-	f32 sin_z = pikmin2_sinf(0.5f * vec.z);
-	q3.set(cos_z, 0.0f, 0.0f, sin_z);
+	f32 cosHalfZ = cos(0.5f * vec.z);
+	f32 sinHalfZ = pikmin2_sinf(0.5f * vec.z);
+	quatZ.set(cosHalfZ, 0.0f, 0.0f, sinHalfZ);
 
-	*this = q3 * q2;
-	*this = *this * q1;
+	*this = quatZ * quatY;
+	*this = *this * quatX;
 }
 
 /**
@@ -552,7 +452,7 @@ void Quat::set(RPY&)
  */
 Quat::Quat(Quat& quat)
 {
-	w = quat.w;
+	w   = quat.w;
 	v.x = quat.v.x;
 	v.y = quat.v.y;
 	v.z = quat.v.z;
@@ -564,7 +464,7 @@ Quat::Quat(Quat& quat)
  */
 void Quat::set(f32 a, f32 b, f32 c, f32 d)
 {
-	w = a;
+	w   = a;
 	v.x = b;
 	v.y = c;
 	v.z = d;
@@ -574,10 +474,7 @@ void Quat::set(f32 a, f32 b, f32 c, f32 d)
  * @note Address: N/A
  * @note Size: 0x20
  */
-void Quat::set(f32 w, Vector3f& xyz)
-{
-	set(w, xyz.x, xyz.y, xyz.z);
-}
+void Quat::set(f32 w, Vector3f& xyz) { set(w, xyz.x, xyz.y, xyz.z); }
 
 /**
  * @note Address: N/A
@@ -597,11 +494,11 @@ void Quat::conjugate()
 {
 	// UNUSED FUNCTION
 
-	#ifdef FOR_MODDING
+#ifdef FOR_MODDING
 	v.x = -v.x;
 	v.y = -v.y;
-	v.z = -v.z;	
-	#endif
+	v.z = -v.z;
+#endif
 }
 
 /**
@@ -610,12 +507,12 @@ void Quat::conjugate()
  */
 Quat Quat::inverse()
 {
-	Quat inv = *this;
+	Quat inv       = *this;
 	Vector3f inVec = v * -1.0f;
-	f32 sq_mag = norm();
+	f32 sq_mag     = norm();
 	if (sq_mag > 0.0f) {
-		f32 sq_norm = 1.0f / sq_mag;
-		Vector3f vec = inVec * sq_norm; 
+		f32 sq_norm  = 1.0f / sq_mag;
+		Vector3f vec = inVec * sq_norm;
 		Quat quat(sq_norm * w, vec);
 		return quat;
 	}
@@ -639,42 +536,39 @@ void rotate(Quat& q, Vector3f& v)
  */
 void Quat::normalise()
 {
-	f32 len    = pikmin2_sqrtf(w * w + v.dot(v));
-	Vector3f vec (v * (1.0f / len));
+	f32 len = pikmin2_sqrtf(w * w + v.dot(v));
+	Vector3f vec(v * (1.0f / len));
 	Quat quat((1.0f / len) * w, vec);
 	*this = quat;
 }
 
 /**
+ * Performs Spherical Linear Interpolation (SLERP) between two quaternions.
+ * This function calculates a quaternion that represents a rotation from the start point to the end point
+ * based on a linear interpolation parameter.
+ *
+ * @param q1 The end point of the path.
+ * @param t The linear interpolation parameter (how far from start to end do we want to be).
+ * @param qout The interpolated quaternion on the path, fraction t from start.
+ *
  * @note Address: 0x804128F0
  * @note Size: 0x348
  */
 void Quat::slerp(Quat& q1, f32 t, Quat& qout)
 {
-	// S_pherical L_inear int_ERP_olation
-	// does 3D rotations, basically
-	//     (*this) is the start point of the path
-	//     q1 is the end point of the path
-	//     t is the linear interpolation parameter (how far from start to end do we want to be)
-	//     qout is (output) interpolated quat on the path, fraction t from start
-	int flipDirection;
-	f32 omega;
-	f32 a;
-
 	// take dot product between start and end - this is cos(omega)
 	// these inputs really should be unit quats, so this should never be > |1|
-	f32 cos_omega = (w * q1.w) + ((v.z * q1.v.z) + ((v.x * q1.v.x) + (v.y * q1.v.y))); // var_f30
+	f32 cos_omega = (w * q1.w) + ((v.z * q1.v.z) + ((v.x * q1.v.x) + (v.y * q1.v.y)));
 
 	// acos is gonna throw errors if we put in > |1|, so don't do that
 	if (cos_omega > 1.0f) {
 		cos_omega = 1.0f;
-	} else {
-		if (cos_omega < -1.0f) {
-			cos_omega = -1.0f;
-		}
+	} else if (cos_omega < -1.0f) {
+		cos_omega = -1.0f;
 	}
 
 	// calculate omega based on positive, but need to remember to flip back later if negative
+	int flipDirection;
 	if (cos_omega < 0.0) {
 		cos_omega     = -cos_omega;
 		flipDirection = 1;
@@ -683,24 +577,28 @@ void Quat::slerp(Quat& q1, f32 t, Quat& qout)
 	}
 
 	// if something's gone drastically wrong, panic bc we can't do acos math on stuff that's outside -1 to 1
-	if ((cos_omega < -1.0f) || (cos_omega > 1.0f)) {
-		JUT_PANICLINE(65, "acosf %f\n", cos_omega);
-	}
+	// if (cos_omega < -1.0f || cos_omega > 1.0f) {
+	// 	JUT_PANICLINE(65, "acosf %f\n", cos_omega);
+	// }
 
 	// call acos to get omega
-	omega = pikmin2_asinf(cos_omega);
+	// [ISSUE HERE] ----------------------------------------------------------------=-=-=-=-=-=-=-=-=-=-HEREHERHEHERHERHE
+	// I negated to fix the resgwaps below, which indicates some weirdness
+	// Regswaps happen inside this function but once fixed I think it'll solve the ones below
+	f32 newOmega = -pikmin2_acosf(cos_omega);
 
 	// calculate sin(omega)
-	f32 sin_omega = pikmin2_sinf(omega);
+	f32 sinOmega = pikmin2_sinf(newOmega);
 
 	// work out what the linear interpolation factors should be
 	// if sin_omega is super tiny, just use an approximation
-	if (FABS(sin_omega) < 0.00001f) {
+	f32 a;
+	if (FABS(sinOmega) < 0.00001f) {
 		a = 1.0f - t;
 	} else {
-		f32 t_omega = t * omega;
-		f32 denom   = 1.0f / sin_omega;
-		a           = pikmin2_sinf(omega - t_omega) * denom;
+		f32 denom   = (1.0f / sinOmega);
+		f32 t_omega = t * newOmega;
+		a           = pikmin2_sinf(newOmega - t_omega) * denom;
 		t           = pikmin2_sinf(t_omega) * denom;
 	}
 
@@ -713,7 +611,7 @@ void Quat::slerp(Quat& q1, f32 t, Quat& qout)
 	qout.v.x = (a * v.x) + (t * q1.v.x);
 	qout.v.y = (a * v.y) + (t * q1.v.y);
 	qout.v.z = (a * v.z) + (t * q1.v.z);
-	qout.w = (a * w) + (t * q1.w);
+	qout.w   = (a * w) + (t * q1.w);
 	/*
 	.loc_0x0:
 	  stwu      r1, -0x60(r1)
@@ -1006,74 +904,87 @@ void Quat::toMatrix(Matrix3f& m)
  */
 void Quat::fromMatrixf(Matrixf& mtx)
 {
-	int case_var;
-	f32 temp_norm;
+	int maxElementCase;
+	f32 averageElement = 0.25f * (1.0f + (mtx.mMatrix.mtxView[2][2] + (mtx.mMatrix.mtxView[0][0] + mtx.mMatrix.mtxView[1][1])));
+	f32 element00      = -((0.5f * (mtx.mMatrix.mtxView[1][1] + mtx.mMatrix.mtxView[2][2])) - averageElement);
+	f32 element11      = -((0.5f * (mtx.mMatrix.mtxView[2][2] + mtx.mMatrix.mtxView[0][0])) - averageElement);
+	f32 element22      = -((0.5f * (mtx.mMatrix.mtxView[0][0] + mtx.mMatrix.mtxView[1][1])) - averageElement);
 
-	f32 avg_elem = 0.25f * (1.0f + (mtx.mMatrix.mtxView[2][2] + (mtx.mMatrix.mtxView[0][0] + mtx.mMatrix.mtxView[1][1])));
-	f32 var_00   = -((0.5f * (mtx.mMatrix.mtxView[1][1] + mtx.mMatrix.mtxView[2][2])) - avg_elem);
-	f32 var_11   = -((0.5f * (mtx.mMatrix.mtxView[2][2] + mtx.mMatrix.mtxView[0][0])) - avg_elem);
-	f32 var_22   = -((0.5f * (mtx.mMatrix.mtxView[0][0] + mtx.mMatrix.mtxView[1][1])) - avg_elem);
-
-	if (avg_elem > var_00) {
-		if (avg_elem > var_11) {
-			if (avg_elem > var_22) {
-				case_var = 0; // w norm
+	if (averageElement > element00) {
+		if (averageElement > element11) {
+			if (averageElement > element22) {
+				maxElementCase = 0; // w norm
 			} else {
-				case_var = 3; // z norm
+				maxElementCase = 3; // z norm
 			}
-		} else if (var_11 > var_22) {
-			case_var = 2; // y norm
+		} else if (element11 > element22) {
+			maxElementCase = 2; // y norm
 		} else {
-			case_var = 3; // z norm
+			maxElementCase = 3; // z norm
 		}
-	} else if (var_00 > var_11) {
-		if (var_00 > var_22) {
-			case_var = 1; // x norm
+	} else if (element00 > element11) {
+		if (element00 > element22) {
+			maxElementCase = 1; // x norm
 		} else {
-			case_var = 3; // z norm
+			maxElementCase = 3; // z norm
 		}
-	} else if (var_11 > var_22) {
-		case_var = 2; // y norm
+	} else if (element11 > element22) {
+		maxElementCase = 2; // y norm
 	} else {
-		case_var = 3; // z norm
+		maxElementCase = 3; // z norm
 	}
 
-	switch (case_var) {
+	// Normalise quaternion based on the maximum element index
+	switch (maxElementCase) {
 	case 0: // w norm
-		w         = pikmin2_sqrtf(avg_elem);
-		temp_norm = 0.25f / w;
-		v.x         = temp_norm * (mtx.mMatrix.mtxView[2][1] - mtx.mMatrix.mtxView[1][2]);
-		v.y         = temp_norm * (mtx.mMatrix.mtxView[0][2] - mtx.mMatrix.mtxView[2][0]);
-		v.z         = temp_norm * (mtx.mMatrix.mtxView[1][0] - mtx.mMatrix.mtxView[0][1]);
-		break;
-	case 1: // x norm
-		v.x         = pikmin2_sqrtf(var_00);
-		temp_norm = 0.25f / v.x;
-		w         = temp_norm * (mtx.mMatrix.mtxView[2][1] - mtx.mMatrix.mtxView[1][2]);
-		v.y         = temp_norm * (mtx.mMatrix.mtxView[0][1] + mtx.mMatrix.mtxView[1][0]);
-		v.z         = temp_norm * (mtx.mMatrix.mtxView[0][2] + mtx.mMatrix.mtxView[2][0]);
-		break;
-	case 2: // y norm
-		v.y         = pikmin2_sqrtf(var_11);
-		temp_norm = 0.25f / v.y;
-		w         = temp_norm * (mtx.mMatrix.mtxView[0][2] - mtx.mMatrix.mtxView[2][0]);
-		v.z         = temp_norm * (mtx.mMatrix.mtxView[1][2] + mtx.mMatrix.mtxView[2][1]);
-		v.x         = temp_norm * (mtx.mMatrix.mtxView[1][0] + mtx.mMatrix.mtxView[0][1]);
-		break;
-	case 3: // z norm
-		v.z         = pikmin2_sqrtf(var_22);
-		temp_norm = 0.25f / v.z;
-		w         = temp_norm * (mtx.mMatrix.mtxView[1][0] - mtx.mMatrix.mtxView[0][1]);
-		v.x         = temp_norm * (mtx.mMatrix.mtxView[2][0] + mtx.mMatrix.mtxView[0][2]);
-		v.y         = temp_norm * (mtx.mMatrix.mtxView[2][1] + mtx.mMatrix.mtxView[1][2]);
+	{
+		w = pikmin2_sqrtf(averageElement);
+
+		f32 temp_norm = 0.25f / w;
+		v.x           = temp_norm * (mtx.mMatrix.mtxView[2][1] - mtx.mMatrix.mtxView[1][2]);
+		v.y           = temp_norm * (mtx.mMatrix.mtxView[0][2] - mtx.mMatrix.mtxView[2][0]);
+		v.z           = temp_norm * (mtx.mMatrix.mtxView[1][0] - mtx.mMatrix.mtxView[0][1]);
 		break;
 	}
+	case 1: // x norm
+	{
+		v.x = pikmin2_sqrtf(element00);
+
+		f32 temp_norm = 0.25f / v.x;
+		w             = temp_norm * (mtx.mMatrix.mtxView[2][1] - mtx.mMatrix.mtxView[1][2]);
+		v.y           = temp_norm * (mtx.mMatrix.mtxView[0][1] + mtx.mMatrix.mtxView[1][0]);
+		v.z           = temp_norm * (mtx.mMatrix.mtxView[0][2] + mtx.mMatrix.mtxView[2][0]);
+		break;
+	}
+	case 2: // y norm
+	{
+		v.y = pikmin2_sqrtf(element11);
+
+		f32 temp_norm = 0.25f / v.y;
+		w             = temp_norm * (mtx.mMatrix.mtxView[0][2] - mtx.mMatrix.mtxView[2][0]);
+		v.z           = temp_norm * (mtx.mMatrix.mtxView[1][2] + mtx.mMatrix.mtxView[2][1]);
+		v.x           = temp_norm * (mtx.mMatrix.mtxView[1][0] + mtx.mMatrix.mtxView[0][1]);
+		break;
+	}
+	case 3: // z norm
+	{
+		v.z = pikmin2_sqrtf(element22);
+
+		f32 temp_norm = 0.25f / v.z;
+		w             = temp_norm * (mtx.mMatrix.mtxView[1][0] - mtx.mMatrix.mtxView[0][1]);
+		v.x           = temp_norm * (mtx.mMatrix.mtxView[2][0] + mtx.mMatrix.mtxView[0][2]);
+		v.y           = temp_norm * (mtx.mMatrix.mtxView[2][1] + mtx.mMatrix.mtxView[1][2]);
+		break;
+	}
+	}
+
 	if (w < 0.0f) {
-		w = -w;
+		w   = -w;
 		v.x = -v.x;
 		v.y = -v.y;
 		v.z = -v.z;
 	}
+
 	f32 len_q = pikmin2_sqrtf(w * w + v.x * v.x + v.y * v.y + v.z * v.z);
 	f32 norm  = 1.0f / len_q;
 	w *= norm;
@@ -1115,74 +1026,13 @@ void Plane::intersectRay(Vector3f&, Vector3f&)
  */
 void BoundBox::makeBoundSphere(Sys::Sphere& sphere)
 {
-	Vector3f mid = (mMin + mMax) / 2;
+	Vector3f mid     = (mMin + mMax) / 2;
 	sphere.mPosition = mid;
 
 	f32 len_min = qdist3(mMin.x, mMin.y, mMin.z, mid.x, mid.y, mid.z);
 	f32 len_max = qdist3(mMax.x, mMax.y, mMax.z, mid.x, mid.y, mid.z);
 
 	sphere.mRadius = (len_min > len_max) ? len_min : len_max;
-	/*
-	.loc_0x0:
-	  lfs       f1, 0x0(r3)
-	  lfs       f0, 0xC(r3)
-	  lfs       f3, 0x4(r3)
-	  lfs       f2, 0x10(r3)
-	  fadds     f0, f1, f0
-	  lfs       f4, 0x1F28(r2)
-	  fadds     f1, f3, f2
-	  lfs       f3, 0x8(r3)
-	  lfs       f2, 0x14(r3)
-	  fmuls     f8, f0, f4
-	  lfs       f0, 0x1F10(r2)
-	  fadds     f2, f3, f2
-	  fmuls     f5, f1, f4
-	  stfs      f8, 0x0(r4)
-	  fmuls     f6, f2, f4
-	  stfs      f5, 0x4(r4)
-	  stfs      f6, 0x8(r4)
-	  lfs       f1, 0x4(r3)
-	  lfs       f2, 0x0(r3)
-	  fsubs     f3, f5, f1
-	  lfs       f1, 0x8(r3)
-	  fsubs     f4, f8, f2
-	  fsubs     f2, f6, f1
-	  fmuls     f1, f3, f3
-	  fmadds    f1, f4, f4, f1
-	  fmadds    f7, f2, f2, f1
-	  fcmpo     cr0, f7, f0
-	  ble-      .loc_0x78
-	  fsqrte    f0, f7
-	  fmuls     f7, f0, f7
-
-	.loc_0x78:
-	  lfs       f0, 0x10(r3)
-	  lfs       f2, 0xC(r3)
-	  fsubs     f3, f5, f0
-	  lfs       f1, 0x14(r3)
-	  fsubs     f4, f8, f2
-	  lfs       f0, 0x1F10(r2)
-	  fsubs     f2, f6, f1
-	  fmuls     f1, f3, f3
-	  fmadds    f1, f4, f4, f1
-	  fmadds    f1, f2, f2, f1
-	  fcmpo     cr0, f1, f0
-	  ble-      .loc_0xB0
-	  fsqrte    f0, f1
-	  fmuls     f1, f0, f1
-
-	.loc_0xB0:
-	  fcmpo     cr0, f7, f1
-	  ble-      .loc_0xBC
-	  b         .loc_0xC0
-
-	.loc_0xBC:
-	  fmr       f7, f1
-
-	.loc_0xC0:
-	  stfs      f7, 0xC(r4)
-	  blr
-	*/
 }
 
 /**
@@ -1193,7 +1043,6 @@ int BoundBox::transform(Matrixf& mtx)
 {
 	// takes a 3x3 matrix M and transforms a BoundBox
 	// by acting as a linear operator on each vertex
-	// also spits out 3 lol
 
 	Vector3f store[8]; // this is gonna hold a whole bunch of vertex information
 	Vector3f mult_out; // vector to store matrix multiplication output
@@ -1205,11 +1054,13 @@ int BoundBox::transform(Matrixf& mtx)
 		} else {
 			store[vertex].x = mMax.x;
 		}
+
 		if ((vertex & 2) == 0) {
 			store[vertex].y = mMin.y;
 		} else {
 			store[vertex].y = mMax.y;
 		}
+
 		if ((vertex & 4) == 0) {
 			store[vertex].z = mMin.z;
 		} else {
@@ -1230,10 +1081,7 @@ int BoundBox::transform(Matrixf& mtx)
 	mMax.y = -SHORT_FLOAT_MAX;
 	mMax.z = -SHORT_FLOAT_MAX;
 
-	// loop over stuff in pairs?
-	// I don't get why this is in pairs tbqh but so be it
-	int count = 0; // idk why we're returning this tbh
-
+	int count = 0;
 	for (int i = 0; i < 4; i++, count++) {
 		include(store[2 * i]);
 		include(store[2 * i + 1]);

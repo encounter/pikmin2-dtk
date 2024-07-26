@@ -8,9 +8,7 @@
 #include "Screen/Game2DMgr.h"
 #include "JSystem/J2D/J2DAnmLoader.h"
 
-static void _Fake() {
-	OSReport("\0\0\0\0\0\0\0\0\0\0\0"); // ???
-}
+static const char unused[] = "\0\0\0\0\0\0\0\0";
 
 namespace kh {
 namespace Screen {

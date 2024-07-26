@@ -31,7 +31,7 @@ struct ParticleMgr : public CNode {
 
 	static void globalInstance();
 	static void deleteInstance();
-	static void Instance_TPkEffectMgr();
+	void Instance_TPkEffectMgr();
 	void deleteInstance_TPkEffectMgr();
 
 	void createHeap(u32);
@@ -64,6 +64,7 @@ struct ParticleMgr : public CNode {
 	void testCreateModelEffect(int, int, Vector3f&);
 
 	inline JPAEmitterManager* getManager() const { return mEmitterManager; }
+	inline Game::GameLightMgr* getLightMgr() const { return mLightMgr; }
 
 	Game::GameLightMgr* mLightMgr;              // _18
 	NodeObjectMgr<ModelEffect> mModelEffectMgr; // _1C

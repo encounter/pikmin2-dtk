@@ -40,6 +40,7 @@ enum JAISoundPauseMode {
 	SOUNDPAUSE_Unk2 = 2,
 	SOUNDPAUSE_Unk3 = 3,
 	SOUNDPAUSE_Unk4 = 4,
+	SOUNDPAUSE_Unk5 = 8,
 };
 
 namespace JAInter {
@@ -134,6 +135,7 @@ struct JAISound : public JSULink<JAISound> {
 	void getActorGroundNumber();
 
 	inline JAISound_0x34* getSoundObj() { return mSoundObj; }
+	inline u8 getTrackNumber() { return _14; }
 
 	// _00 - _10: JSULink
 	// VTBL _10

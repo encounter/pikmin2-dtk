@@ -743,7 +743,7 @@ void PlayingStream()
 		}
 	}
 
-	if (data->mActiveTrackFlag & SOUNDACTIVE_ChannelVolume) {
+	if (data->mActiveTrackFlag & SOUNDACTIVE_TrackVolume) {
 		for (u8 i = 0; i < sChannelMax; i++) {
 			MoveParaSet* chanVol = &param->mChannelVolumes[i];
 			if (param->mChannelVolumeFlags & (1 << i)) {
@@ -755,7 +755,7 @@ void PlayingStream()
 		}
 
 		if (param->mChannelVolumeFlags == 0) {
-			data->mActiveTrackFlag ^= SOUNDACTIVE_ChannelVolume;
+			data->mActiveTrackFlag ^= SOUNDACTIVE_TrackVolume;
 		}
 	}
 
@@ -807,7 +807,7 @@ void PlayingStream()
 		}
 	}
 
-	if (data->mActiveTrackFlag & SOUNDACTIVE_ChannelPan) {
+	if (data->mActiveTrackFlag & SOUNDACTIVE_TrackPan) {
 		for (u8 i = 0; i < sChannelMax; i++) {
 			MoveParaSet* pan = &param->mChannelPans[i];
 			if (param->mChannelPanFlags & (1 << i)) {
@@ -819,7 +819,7 @@ void PlayingStream()
 		}
 
 		if (param->mChannelPanFlags == 0) {
-			data->mActiveTrackFlag ^= SOUNDACTIVE_ChannelPan;
+			data->mActiveTrackFlag ^= SOUNDACTIVE_TrackPan;
 		}
 	}
 
@@ -927,7 +927,7 @@ void PlayingStream()
 		}
 	}
 
-	if (data->mActiveTrackFlag & SOUNDACTIVE_ChannelDolby) {
+	if (data->mActiveTrackFlag & SOUNDACTIVE_TrackDolby) {
 		for (u8 i = 0; i < sChannelMax; i++) {
 			MoveParaSet* dolby = &param->mChannelDolbys[i];
 			if (param->mChannelDolbyFlags & (1 << i)) {
@@ -939,7 +939,7 @@ void PlayingStream()
 		}
 
 		if (param->mChannelDolbyFlags == 0) {
-			data->mActiveTrackFlag ^= SOUNDACTIVE_ChannelDolby;
+			data->mActiveTrackFlag ^= SOUNDACTIVE_TrackDolby;
 		}
 	}
 
@@ -947,23 +947,23 @@ void PlayingStream()
 		BOOL interrupts = OSDisableInterrupts();
 		for (int i = 0; i < getChannelMax(); i++) {
 			if (trackFlags[i] & SOUNDACTIVE_Volume) {
-				streamSystem->_26C[0][i] = streamUpdate->_04 * param->mChannelVolumes[i].mCurrentValue;
+				streamSystem->mChannelData[0][i] = streamUpdate->_04 * param->mChannelVolumes[i].mCurrentValue;
 			}
 			if (trackFlags[i] & SOUNDACTIVE_Pan) {
-				JASAramStream* system = streamSystem;
-				system->_26C[1][i]    = (streamUpdate->_0C + param->mChannelPans[i].mCurrentValue) - 0.5f;
-				system->_2D8          = 1;
+				JASAramStream* system      = streamSystem;
+				system->mChannelData[1][i] = (streamUpdate->_0C + param->mChannelPans[i].mCurrentValue) - 0.5f;
+				system->mUseStereo         = 1;
 			}
 			if (trackFlags[i] & SOUNDACTIVE_Fxmix) {
-				streamSystem->_26C[2][i] = streamUpdate->_10 + param->mChannelFxmixes[i].mCurrentValue;
+				streamSystem->mChannelData[2][i] = streamUpdate->_10 + param->mChannelFxmixes[i].mCurrentValue;
 			}
 			if (trackFlags[i] & SOUNDACTIVE_Dolby) {
-				streamSystem->_26C[3][i] = streamUpdate->_14 + param->mChannelDolbys[i].mCurrentValue;
+				streamSystem->mChannelData[3][i] = streamUpdate->_14 + param->mChannelDolbys[i].mCurrentValue;
 			}
 		}
 
 		if (isPitchUpdated) {
-			streamSystem->_268 = streamUpdate->_08;
+			streamSystem->mPitch = streamUpdate->_08;
 		}
 		OSRestoreInterrupts(interrupts);
 	}
@@ -1875,7 +1875,7 @@ void checkEntriedStream()
 
 	char* fileName
 	    = (char*)((size_t)streamList + (streamList[JAIBasic::getInterface()->getSoundOffsetNumberFromID(streamSound->mSoundID) + 2]));
-	char filePath[256];
+	char filePath[PATH_MAX];
 	strcpy(filePath, JAIGlobalParameter::getParamStreamPath());
 	strcat(filePath, fileName);
 	playDirect(filePath);

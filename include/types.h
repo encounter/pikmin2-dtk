@@ -1,6 +1,10 @@
 #ifndef _TYPES_H
 #define _TYPES_H
 
+#ifdef __INTELLISENSE__
+#include "../.vscode/warnings.h"
+#endif
+
 #include "BuildSettings.h"
 
 // r2 is  8051E360
@@ -50,6 +54,9 @@ typedef u16 wchar_t;
 #define NULL  ((void*)0)
 #define nullptr 0
 
+// Maximum length of a path in engine
+#define PATH_MAX (256)
+
 #define SET_FLAG(x, val)     (x |= (val))
 #define RESET_FLAG(x, val)   (x &= ~(val))
 #define IS_FLAG(x, val)      (x & val)
@@ -73,12 +80,10 @@ typedef u16 wchar_t;
 
 #ifdef __MWERKS__
 #define WEAKFUNC        __declspec(weak)
-#define FORCEACTIVE    	__declspec(export)
 #define DECL_SECT(name) __declspec(section name)
 #define ASM             asm
 #else
 #define WEAKFUNC
-#define FORCEACTIVE
 #define DECL_SECT(name)
 #define ASM
 #endif

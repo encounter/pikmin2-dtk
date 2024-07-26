@@ -10,18 +10,18 @@ DynamicsParms* DynamicsParms::mInstance;
  */
 DynamicsParms::DynamicsParms()
     : Parameters(nullptr, "Dynamics")
-    , mNewFriction(this, 'd009', "æ–°ãƒ•ãƒªã‚¯ã‚·ãƒ§ãƒ³", true, false, true) // 'new friction'
+    , mNewFriction(this, 'd009', "VƒtƒŠƒNƒVƒ‡ƒ“", true, false, true) // 'new friction'
     , mStaParm(this, 'd011', "Sta-Parm", 140.0f, 0.0f, 5000.0f)
     , mStatic(this, 'd010', "Static", 10.0f, 0.0f, 5000.0f)
     , mMicroCollision(this, 'd000', "micro collision", 0.015f, 0.0f, 10.0f)
-    , mFrictionDuringResolve(this, 'd001', "Resolveæ™‚ã®æ‘©æ“¦", false, false, true) // 'friction during Resolve'
+    , mFrictionDuringResolve(this, 'd001', "ResolveŽž‚Ì–€ŽC", false, false, true) // 'friction during Resolve'
     , mElasticity(this, 'd002', "elasticity", 0.3f, 0.0f, 1.0f)
-    , mFriction(this, 'd003', "æ‘©æ“¦", true, false, true)                          // 'friction'
-    , mFrictionTangentVelocity(this, 'd004', "æ‘©æ“¦:tanvel", true, false, true)    // 'friction:tanvel' - tangent velocity?
-    , mFixedFriction(this, 'd005', "å›ºå®šæ‘©æ“¦", true, false, true)                 // 'fixed friction'
-    , mFixedFrictionValue(this, 'd006', "å›ºå®šæ‘©æ“¦å€¤", 100.0f, 0.0f, 10000.0f)     // 'fixed friction value'
-    , mNoRotationEffect(this, 'd007', "å›žè»¢å½±éŸ¿ãªã—ã«ã™ã‚‹", true, false, true)    // 'no rotation effect'
-    , mRotatingMomentDamp(this, 'd008', "å›žè»¢ãƒ¢ãƒ¼ãƒ¡ãƒ³ãƒˆ Damp", 0.05f, 0.0f, 1.0f) // 'rotating moment Damp'
+    , mFriction(this, 'd003', "–€ŽC", true, false, true)                          // 'friction'
+    , mFrictionTangentVelocity(this, 'd004', "–€ŽC:tanvel", true, false, true)    // 'friction:tanvel' - tangent velocity?
+    , mFixedFriction(this, 'd005', "ŒÅ’è–€ŽC", true, false, true)                 // 'fixed friction'
+    , mFixedFrictionValue(this, 'd006', "ŒÅ’è–€ŽC’l", 100.0f, 0.0f, 10000.0f)     // 'fixed friction value'
+    , mNoRotationEffect(this, 'd007', "‰ñ“]‰e‹¿‚È‚µ‚É‚·‚é", true, false, true)    // 'no rotation effect'
+    , mRotatingMomentDamp(this, 'd008', "‰ñ“]ƒ‚[ƒƒ“ƒg Damp", 0.05f, 0.0f, 1.0f) // 'rotating moment Damp'
 {
 	mInstance = this;
 }
@@ -324,7 +324,7 @@ void Game::Rigid::integrate(f32 timeStep, int configIdx)
 		halfTimeQ = Quat((0.5f * timeStep) * primaryQ.w, primaryQ.v * (0.5f * timeStep));
 
 		Quat primaryRotatedQ; // 0x130
-		primaryRotatedQ = Quat(halfTimeQ + thisConfig->mPrimaryRotation);
+		primaryRotatedQ = halfTimeQ + thisConfig->mPrimaryRotation;
 
 		Vector3f vec1; // 0x124
 		f32 yDeg48 = getYDegree(thisConfig->mPrimaryRotation, vec1);
@@ -345,12 +345,12 @@ void Game::Rigid::integrate(f32 timeStep, int configIdx)
 				thisConfig->mPrimaryRotation = primaryRotatedQ;
 			}
 		} else {
-			thisConfig->mPrimaryRotation = Quat(thisConfig->mPrimaryRotation + halfTimeQ);
+			thisConfig->mPrimaryRotation = thisConfig->mPrimaryRotation + halfTimeQ;
 		}
 	} else {
 		Quat q5; // 0x108
 		q5                           = Quat((0.5f * timeStep) * primaryQ.w, primaryQ.v * (0.5f * timeStep));
-		thisConfig->mPrimaryRotation = Quat(thisConfig->mPrimaryRotation + q5);
+		thisConfig->mPrimaryRotation = thisConfig->mPrimaryRotation + q5;
 	}
 
 	thisConfig->mPrimaryRotation.normalise();
@@ -807,7 +807,7 @@ bool Game::Rigid::resolveCollision(int configIndex, Vector3f& collisionPoint, Ve
 	Vector3f impulse = angularMomentum + config->mVelocity;
 	impulse.negate2();
 
-	float impulseMagnitude = impulse.dot(collisionNormal);
+	f32 impulseMagnitude = impulse.dot(collisionNormal);
 
 	// If there's a collision
 	if (impulseMagnitude < 0.0f * -0.0f) {

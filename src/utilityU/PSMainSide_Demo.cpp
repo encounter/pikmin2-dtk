@@ -37,7 +37,7 @@ inline void DemoInitiator::setDefaultValues()
 	P2ASSERTLINE(41, isInitialized());
 
 	mASTid = -1;
-	strcpy(mBuffer, "\0");
+	strcpy(mBuffer, "");
 	*mByte = -1;
 }
 
@@ -66,7 +66,7 @@ void DemoInitiator::equalSetStream(const char* buffer, u32 AST_ID, u8 byte)
 	P2ASSERTLINE(41, check);
 
 	mASTid = AST_ID;
-	strcpy((char*)buffer, "\0");
+	strcpy((char*)buffer, "");
 	*mByte = byte;
 }
 
@@ -157,7 +157,7 @@ void Demo::init(Vec* cam1pos, Vec* cam2pos, Mtx mtx, DemoArg arg)
 	P2ASSERTLINE(199, scene);
 
 	PSSystem::SceneMgr* mgr = PSSystem::getSceneMgr();
-	PSSystem::checkSceneMgr(mgr);
+	PSSystem::validateSceneMgr(mgr);
 	PSM::Scene_Game* scene2 = static_cast<PSM::Scene_Game*>(mgr->getChildScene());
 	scene2->adaptChildScene(scene);
 	P2ASSERTLINE(203, scene);
@@ -178,7 +178,7 @@ void Demo::init(Vec* cam1pos, Vec* cam2pos, Mtx mtx, DemoArg arg)
 void Demo::demo1stLoadSync()
 {
 	PSSystem::SceneMgr* mgr = PSSystem::getSceneMgr();
-	PSSystem::checkSceneMgr(mgr);
+	PSSystem::validateSceneMgr(mgr);
 	PSM::Scene_Game* scene = static_cast<PSM::Scene_Game*>(mgr->getChildScene());
 	PSSystem::checkChildScene2(scene);
 	scene->mChild->scene1stLoadSync();
@@ -354,7 +354,7 @@ PSSystem::BgmSeq* Demo::initiate(DemoArg demoArg, u8* unk)
 	init.setDefault("x03_find_red_onyon", P2_STREAM_SOUND_ID(PSSTR_RED_ONYON));
 
 	if (streq("s02_dayend_result", init.mName)) {
-		audio_info.mVolume.c -= 15;
+		audio_info.mVolume.byteView[0] -= 15;
 	}
 	// clang-format off
 	if (streq("s10_suck_treasure",        init.mName) ||
@@ -409,7 +409,7 @@ PSSystem::BgmSeq* Demo::initiate(DemoArg demoArg, u8* unk)
 	if (AST_ID != PSSE_NULL) {
 		// we have streamed music, play it
 		PSGame::PikSceneMgr* scene_mgr = (PSGame::PikSceneMgr*)PSSystem::getSceneMgr();
-		PSSystem::checkSceneMgr(scene_mgr);
+		PSSystem::validateSceneMgr(scene_mgr);
 
 		seq  = scene_mgr->newStreamBgm(AST_ID, audio_info);
 		*unk = -1;
@@ -417,7 +417,7 @@ PSSystem::BgmSeq* Demo::initiate(DemoArg demoArg, u8* unk)
 	} else if (bmsFilePath[0] != '\0') {
 		// we have bgm, play it
 		PSGame::PikSceneMgr* scene_mgr = (PSGame::PikSceneMgr*)PSSystem::getSceneMgr();
-		PSSystem::checkSceneMgr(scene_mgr);
+		PSSystem::validateSceneMgr(scene_mgr);
 
 		seq = scene_mgr->newBgmSeq(bmsFilePath, audio_info);
 		P2ASSERTLINE(632, seq);
@@ -540,7 +540,7 @@ void Demo::becomeSceneCamera()
 void Demo::onDemoFadeoutStart(u32 flag)
 {
 	PSSystem::SceneMgr* mgr = PSSystem::getSceneMgr();
-	PSSystem::checkSceneMgr(mgr);
+	PSSystem::validateSceneMgr(mgr);
 	PSM::Scene_Game* scene = static_cast<PSM::Scene_Game*>(mgr->getChildScene());
 	PSSystem::stopChildSeq(scene, flag - 2);
 }
@@ -618,14 +618,14 @@ void Demo::onMessageEnd(int id)
 		PSSystem::getSoundCategoryInfo(cat, 2)->mDisabled = false;
 
 		PSSystem::SceneMgr* mgr = PSSystem::getSceneMgr();
-		PSSystem::checkSceneMgr(mgr);
+		PSSystem::validateSceneMgr(mgr);
 		PSM::Scene_Game* scene = static_cast<PSM::Scene_Game*>(mgr->getChildScene());
 		PSSystem::checkChildScene(scene);
 		scene->mChild->stopMainSeq(5);
 	} else if (!strcmp(name, "x03_find_red_onyon") && id == 0) {
 		// After the first text box of find red onion cutscene, let the music start playing
 		PSSystem::SceneMgr* mgr = PSSystem::getSceneMgr();
-		PSSystem::checkSceneMgr(mgr);
+		PSSystem::validateSceneMgr(mgr);
 		PSM::Scene_Game* scene = static_cast<PSM::Scene_Game*>(mgr->getChildScene());
 		PSSystem::checkChildScene(scene);
 		scene->mChild->startMainSeq();
@@ -641,7 +641,7 @@ void Demo::onMessageEnd(int id)
 void PSMCancelToPauseOffMainBgm()
 {
 	PSSystem::SceneMgr* mgr = PSSystem::getSceneMgr();
-	PSSystem::checkSceneMgr(mgr);
+	PSSystem::validateSceneMgr(mgr);
 	PSM::Scene_Game* scene = static_cast<PSM::Scene_Game*>(mgr->getChildScene());
 	scene->mSeqMgr.cancelPauseOffAllSeq();
 	PSSystem::EnvSeMgr* se = scene->getEnvSe();
@@ -661,7 +661,7 @@ void PSMCancelToPauseOffMainBgm()
 PSM::Scene_Game* PSMGetGameSceneA()
 {
 	PSSystem::SceneMgr* mgr = PSSystem::getSceneMgr();
-	PSSystem::checkSceneMgr(mgr);
+	PSSystem::validateSceneMgr(mgr);
 	PSM::Scene_Game* scene = static_cast<PSM::Scene_Game*>(mgr->getChildScene());
 	PSSystem::checkGameScene(scene);
 	return scene;

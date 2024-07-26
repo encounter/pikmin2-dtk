@@ -25,6 +25,13 @@ struct AnimGroup;
 struct AnimScreen;
 struct DataNavi;
 
+enum AnimTextColorType {
+	ANIMTEXTCOLOR_Default   = 0, // set to this unless changed
+	ANIMTEXTCOLOR_Menu      = 1, // text in menus (e.g. pause screen)
+	ANIMTEXTCOLOR_GreyedOut = 2, // unselectable, like "Go to Sunset" on day 1
+	ANIMTEXTCOLOR_Title     = 3, // text on title
+};
+
 struct CounterKeta {
 	inline CounterKeta(J2DPicture* pic)
 	{
@@ -36,6 +43,8 @@ struct CounterKeta {
 
 	void setSuji(ResTIMG**, u32);
 	void calcScale();
+
+	inline J2DPicture* getPicture() { return mPicture; }
 
 	J2DPicture* mPicture; // _00
 	u32 mTextureIndex;    // _04
@@ -66,33 +75,32 @@ struct CallBack_CatchPiki : public P2DScreen::CallBackNode {
 struct CallBack_CounterRV : public P2DScreen::CallBackNode {
 	enum EnumCenteringMode { ECM_Unknown0 = 0, ECM_Unknown1 = 1, ECM_UNKNOWN_2 = 2 };
 
-	CallBack_CounterRV(char**, u16, u16, JKRArchive*);
+	CallBack_CounterRV(char** charTexturePaths, u16 maxDigits, u16 minDigits, JKRArchive* arc);
 
-	virtual ~CallBack_CounterRV() { }              // _08 (weak)
-	virtual void update();                         // _10
-	virtual void draw(Graphics&, J2DGrafContext&); // _14
-	virtual void init(J2DScreen*, u64, u64, u64, u32*,
-	                  bool);           // _1C
-	virtual void show();               // _20
-	virtual void hide();               // _24
-	virtual void setValue(bool, bool); // _28
-	virtual void setValue();           // _2C (weak)
+	virtual ~CallBack_CounterRV() { }                                                                  // _08 (weak)
+	virtual void update();                                                                             // _10
+	virtual void draw(Graphics& gfx, J2DGrafContext& graf);                                            // _14
+	virtual void init(J2DScreen* screen, u64 tag1, u64 tag2, u64 tag3, u32* countPtr, bool hasMother); // _1C
+	virtual void show();                                                                               // _20
+	virtual void hide();                                                                               // _24
+	virtual void setValue(bool isUp, bool isDown);                                                     // _28
+	virtual void setValue() { setValue(false, false); }                                                // _2C (weak)
 
-	inline int getMaxCounter() { return (mCurrentCounters >= mCounterLimit) ? mCounterLimit : mCurrentCounters; }
+	inline u16 getMaxCounter() { return (mCurrentDigitNum >= mMaxDisplayDigitNum) ? mMaxDisplayDigitNum : mCurrentDigitNum; }
 
 	J2DPane* getMotherPane();
-	void setBlind(bool);
-	void setCenteringMode(EnumCenteringMode);
-	void setCounterUpDown(int, bool, bool);
-	void setKetaSub(int, bool, bool);
-	void setPuyoAnim(bool);
-	void setPuyoAnimZero(bool);
+	void setBlind(bool isBlind);
+	void setCenteringMode(EnumCenteringMode centerMode);
+	void setCounterUpDown(int digitID, bool isUp, bool isDown);
+	void setKetaSub(int displayDigitNum, bool isUp, bool isDown);
+	void setPuyoAnim(bool isPuyoAnim);
+	void setPuyoAnimZero(bool isPuyoAnimZero);
 	void setRandMode(bool);
 	void setValPtr(u32*);
-	void setZeroAlpha(u8);
-	void startPuyoUp(f32);
+	void setZeroAlpha(u8 alpha);
+	void startPuyoUp(f32 scaleDelayFactor);
 
-	inline J2DPicture* getKetaPicture(int i) { return mCounters[i]->mPicture; }
+	inline J2DPicture* getKetaPicture(int i) { return mCounterDigits[i]->mPicture; }
 
 	// _00     = VTBL
 	// _00-_1C = P2DScreen::CallBackNode
@@ -100,9 +108,9 @@ struct CallBack_CounterRV : public P2DScreen::CallBackNode {
 	u32* mCountPtr;                   // _20
 	u32 mInitialDisplayValue;         // _24
 	u32 mCurrDisplayValue;            // _28
-	u16 mCurrentCounters;             // _2C
-	u16 mCounterLimit;                // _2E
-	u16 mMaxCounterLimit;             // _30
+	u16 mCurrentDigitNum;             // _2C
+	u16 mMaxDisplayDigitNum;          // _2E
+	u16 mMinDisplayDigitNum;          // _30
 	f32 mPane12DistX;                 // _34
 	f32 mPane13DistX;                 // _38
 	f32 mKetaScaleX;                  // _3C
@@ -117,14 +125,14 @@ struct CallBack_CounterRV : public P2DScreen::CallBackNode {
 	J2DPane* mPic2;                   // _70
 	J2DPane* mPic3;                   // _74
 	J2DPane* mMotherPane;             // _78
-	CounterKeta** mCounters;          // _7C
+	CounterKeta** mCounterDigits;     // _7C
 	ResTIMG** mImgResources;          // _80
 	bool mIsPuyoAnim;                 // _84
 	bool mIsPuyoAnimZero;             // _85
 	bool mIsBlind;                    // _86
 	bool mIsHidden;                   // _87
 	bool mIsMother;                   // _88
-	u8 mDoUseRandomValue;             // _89
+	bool mDoUseRandomValue;           // _89
 	EnumCenteringMode mCenteringMode; // _8C
 	u8 mZeroAlpha;                    // _90
 	SoundID mScaleUpSoundID;          // _94
@@ -136,14 +144,16 @@ struct CallBack_CounterRV : public P2DScreen::CallBackNode {
 	static struct StaticValues {
 		inline StaticValues()
 		{
-			_00 = 0.5f;
-			_04 = 30.0f;
-			_08 = 0.8f;
+			// the funny thing is, these are just the default values.
+			// they should've just called mScaleMgr->up(f32), but that's stripped
+			mScaleRestoreAmplitude = 0.5f;
+			mScaleAngularFreq      = 30.0f;
+			mScaleMaxRestoreTime   = 0.8f;
 		}
 
-		f32 _00; // _00
-		f32 _04; // _04
-		f32 _08; // _08
+		f32 mScaleRestoreAmplitude; // _00
+		f32 mScaleAngularFreq;      // _04
+		f32 mScaleMaxRestoreTime;   // _08
 	} msVal;
 };
 
@@ -180,7 +190,7 @@ struct CallBack_CounterSlot : public CallBack_CounterRV {
 
 	inline void hidePicture(int i)
 	{
-		J2DPicture* pic = mCounters[i]->mPicture;
+		J2DPicture* pic = mCounterDigits[i]->mPicture;
 		pic->hide();
 	}
 
@@ -435,38 +445,38 @@ struct AnimText_Screen : public CallBack_Screen {
 
 	// _00     = VTBL
 	// _00-_34 = CallBack_Screen
-	int mColorType;            // _34
-	AnimScreen* mAnmScreen;    // _38
-	bool mIsUpdateSuccess;     // _3C
-	J2DTextBox* mMsgBodyPane;  // _40
-	J2DTextBox* mMsgBackPane;  // _44 // just a guess
-	bool mNeedOpenText;        // _48, never enabled?
-	u32 mUnused1;              // _4C
-	u64 mTag;                  // _50
-	f32 mBlinkTimer;           // _58
-	f32 mBlinkFactor;          // _5C
-	f32 mBlinkLevel;           // _60
-	f32 mBlinkBlendRatio;      // _64
-	bool mIsBlinking;          // _68
-	f32 mMesgAlpha;            // _6C
-	JUtility::TColor mColor0;  // _70
-	JUtility::TColor mColor1;  // _74
-	JUtility::TColor mColor2;  // _78
-	JUtility::TColor mColor3;  // _7C
-	JUtility::TColor mColor4;  // _80
-	JUtility::TColor mColor5;  // _84
-	JUtility::TColor mColor6;  // _88
-	JUtility::TColor mColor7;  // _8C
-	JUtility::TColor mColor8;  // _90
-	JUtility::TColor mColor9;  // _94
-	JUtility::TColor mColor10; // _98
-	JUtility::TColor mColor11; // _9C
-	JUtility::TColor mColor12; // _A0
-	JUtility::TColor mColor13; // _A4
-	JUtility::TColor mColor14; // _A8
-	JUtility::TColor mColor15; // _AC
-	JUtility::TColor mColor16; // _B0
-	u8 mUnused2[4];            // _B4
+	int mColorType;                         // _34
+	AnimScreen* mAnmScreen;                 // _38
+	bool mIsUpdateSuccess;                  // _3C
+	J2DTextBox* mMsgBodyPane;               // _40
+	J2DTextBox* mMsgBackPane;               // _44 // just a guess
+	bool mNeedOpenText;                     // _48, never enabled?
+	u32 mUnused1;                           // _4C
+	u64 mTag;                               // _50
+	f32 mBlinkTimer;                        // _58
+	f32 mBlinkFactor;                       // _5C
+	f32 mBlinkLevel;                        // _60
+	f32 mBlinkBlendRatio;                   // _64
+	bool mIsBlinking;                       // _68
+	f32 mMesgAlpha;                         // _6C
+	JUtility::TColor mGreyedOutBodyWhite;   // _70
+	JUtility::TColor mGreyedOutBodyBlack;   // _74
+	JUtility::TColor mMenuBodyBlink1;       // _78, blink menu body white between this...
+	JUtility::TColor mMenuBodyBlink2;       // _7C, ... and this...
+	JUtility::TColor mMenuBodyWhite;        // _80, with this as the "default"
+	JUtility::TColor mMenuBodyBlack;        // _84
+	JUtility::TColor mMenuBgWhite;          // _88
+	JUtility::TColor mMenuBgBlack;          // _8C
+	JUtility::TColor mGreyedOutBgWhite;     // _90
+	JUtility::TColor mGreyedOutBgBlack;     // _94
+	JUtility::TColor mDefaultBgWhite;       // _98, same as msg pane white
+	JUtility::TColor mDefaultBgBlack;       // _9C, same as msg pane black
+	JUtility::TColor mCurrentMenuBodyWhite; // _A0, curr menu body white
+	JUtility::TColor mTitleBodyWhite;       // _A4
+	JUtility::TColor mTitleBodyBlack;       // _A8
+	JUtility::TColor mTitleBgWhite;         // _AC
+	JUtility::TColor mTitleBgBlack;         // _B0
+	u8 mUnused2[4];                         // _B4
 };
 
 extern const char* SujiTex32[11];

@@ -1264,29 +1264,29 @@ bool Game2DMgr::open_Contena(og::Screen::DispMemberContena& disp)
 		return false;
 
 	SceneType id = (SceneType)0;
-	switch (disp.mOnyonID) {
-	case ONYON_TYPE_BLUE:
+	switch (disp.mDataContena.mOnyonID) {
+	case Game::Blue:
 		id = SCENE_CONTENA_BLUE;
 		break;
-	case ONYON_TYPE_RED:
+	case Game::Red:
 		id = SCENE_CONTENA_RED;
 		break;
-	case ONYON_TYPE_YELLOW:
+	case Game::Yellow:
 		id = SCENE_CONTENA_YELLOW;
 		break;
-	case 4:
+	case Game::White:
 		id = SCENE_CONTENA_WHITE;
 		break;
-	case 3:
+	case Game::Purple:
 		id = SCENE_CONTENA_PURPLE;
 		break;
 	}
 	SetSceneArg arg(id, &disp);
 	if (mScreenMgr->setScene(arg) && mScreenMgr->startScene(nullptr)) {
-		switch (disp.mOnyonID) {
-		case ONYON_TYPE_BLUE:
-		case ONYON_TYPE_RED:
-		case ONYON_TYPE_YELLOW:
+		switch (disp.mDataContena.mOnyonID) {
+		case Game::Blue:
+		case Game::Red:
+		case Game::Yellow:
 			PSPause_StartMenuOn();
 			break;
 		}
@@ -1306,7 +1306,7 @@ int Game2DMgr::check_Contena()
 	if ((u32)(id + ~SCENE_FLOOR) <= 3 || id == SCENE_CONTENA_PURPLE) {
 		og::Screen::DispMemberContena* disp = static_cast<og::Screen::DispMemberContena*>(mScreenMgr->getDispMember());
 		if (disp->isID(OWNER_OGA, MEMBER_CONTENA)) {
-			switch (disp->mState) {
+			switch (disp->mDataContena.mState) {
 			case 3:
 				ret = CHECK2D_Contena_Cancel;
 				break;
@@ -1338,7 +1338,7 @@ int Game2DMgr::result_Contena()
 	if ((u32)(id + ~SCENE_FLOOR) <= 3 || id == SCENE_CONTENA_PURPLE) {
 		og::Screen::DispMemberContena* disp = static_cast<og::Screen::DispMemberContena*>(mScreenMgr->getDispMember());
 		if (disp->isID(OWNER_OGA, MEMBER_CONTENA)) {
-			ret = disp->mResult;
+			ret = disp->mDataContena.mResult;
 		}
 	} else {
 		JUT_PANICLINE(1937, "Illegal call.\n");
@@ -1357,8 +1357,8 @@ bool Game2DMgr::open_UfoMenu(og::Screen::DispMemberUfoGroup& disp)
 	if (checkDayEnd(0.08f))
 		return false;
 	if (disp.mHasWhite && disp.mHasPurple) {
-		disp.mContena1.mExitSoundType = 1;
-		disp.mContena2.mExitSoundType = 1;
+		disp.mContena1.mDataContena.mExitSoundType = 1;
+		disp.mContena2.mDataContena.mExitSoundType = 1;
 		SetSceneArg arg(SCENE_UFO_MENU, &disp);
 		if (mScreenMgr->setScene(arg) && mScreenMgr->startScene(nullptr)) {
 			PSPause_StartMenuOn();
@@ -1367,16 +1367,16 @@ bool Game2DMgr::open_UfoMenu(og::Screen::DispMemberUfoGroup& disp)
 		}
 	} else {
 		if (disp.mHasWhite) {
-			disp.mContena1.mExitSoundType = 0;
-			disp.mUfoMenu.mContenaType    = 1;
+			disp.mContena1.mDataContena.mExitSoundType = 0;
+			disp.mUfoMenu.mContenaType                 = 1;
 			SetSceneArg arg(SCENE_CONTENA_WHITE, &disp);
 			if (mScreenMgr->setScene(arg) && mScreenMgr->startScene(nullptr)) {
 				PSPause_StartMenuOn();
 				return true;
 			}
 		} else if (disp.mHasPurple) {
-			disp.mContena2.mExitSoundType = 0;
-			disp.mUfoMenu.mContenaType    = 2;
+			disp.mContena2.mDataContena.mExitSoundType = 0;
+			disp.mUfoMenu.mContenaType                 = 2;
 			SetSceneArg arg(SCENE_CONTENA_PURPLE, &disp);
 			if (mScreenMgr->setScene(arg) && mScreenMgr->startScene(nullptr)) {
 				PSPause_StartMenuOn();
@@ -1406,14 +1406,14 @@ int Game2DMgr::check_UfoMenu()
 		break;
 	}
 	case SCENE_CONTENA_WHITE: {
-		switch (disp->mContena1.mState) {
+		switch (disp->mContena1.mDataContena.mState) {
 		case 4: {
 			ret = CHECK2D_Ufo_Confirmed;
 			PSPause_StartMenuOff();
 			break;
 		}
 		case 3: {
-			if (disp->mContena1.mExitSoundType) {
+			if (disp->mContena1.mDataContena.mExitSoundType) {
 				ret = CHECK2D_Ufo_Default;
 			} else {
 				ret = CHECK2D_Ufo_Cancel;
@@ -1428,14 +1428,14 @@ int Game2DMgr::check_UfoMenu()
 		break;
 	}
 	case SCENE_CONTENA_PURPLE: {
-		switch (disp->mContena2.mState) {
+		switch (disp->mContena2.mDataContena.mState) {
 		case 4: {
 			ret = CHECK2D_Ufo_Confirmed;
 			PSPause_StartMenuOff();
 			break;
 		}
 		case 3: {
-			if (disp->mContena2.mExitSoundType) {
+			if (disp->mContena2.mDataContena.mExitSoundType) {
 				ret = CHECK2D_Ufo_Default;
 			} else {
 				ret = CHECK2D_Ufo_Cancel;
@@ -1462,13 +1462,13 @@ void Game2DMgr::result_UfoMenu(int* ret1, int* ret2)
 	og::Screen::DispMemberUfoGroup* disp = static_cast<og::Screen::DispMemberUfoGroup*>(mScreenMgr->getDispMember());
 	switch (mScreenMgr->getSceneType()) {
 	case SCENE_CONTENA_WHITE: {
-		*ret1 = disp->mContena1.mResult;
+		*ret1 = disp->mContena1.mDataContena.mResult;
 		*ret2 = 0;
 		break;
 	}
 	case SCENE_CONTENA_PURPLE: {
 		*ret1 = 0;
-		*ret2 = disp->mContena2.mResult;
+		*ret2 = disp->mContena2.mDataContena.mResult;
 		break;
 	}
 	}

@@ -6,6 +6,7 @@
 #include "IDelegate.h"
 #include "id32.h"
 #include "Rect.h"
+#include "Game/Piki.h" // solely for the piki id enum
 
 struct Controller;
 
@@ -15,6 +16,16 @@ struct BaseGameSection;
 
 namespace og {
 namespace Screen {
+
+enum MenuFinishState {
+	MENUFINISH_CaveExit         = 0,
+	MENUFINISH_GetFromSubMember = 1,
+	MENUFINISH_ContinueGround   = 2,
+	MENUFINISH_GoToSunset       = 3,
+	MENUFINISH_ReturnToLastSave = 4,
+	MENUFINISH_ContinueCave     = 5,
+	MENUFINISH_GiveUpEscape     = 6,
+};
 
 // size 0x8
 struct DispMemberBase {
@@ -45,7 +56,7 @@ struct DispMemberAnaDemo : public DispMemberBase {
 		mUnusedValue    = 0;
 		mCaveOtakaraNum = 24;
 		mCaveOtakaraMax = 69;
-		mExitStatus     = 1;
+		mExitStatus     = MENUFINISH_GetFromSubMember;
 		mPikis          = 1;
 		mPikisField     = 1;
 		mCaveID         = 't_01';
@@ -228,40 +239,17 @@ struct DispMemberChallenge2P : public DispMemberBase {
 
 // size 0x38
 struct DispMemberContena : public DispMemberBase {
-	inline DispMemberContena()
-	{
-		mInOnion          = 100;
-		mCurrInMap        = 1000;
-		mNewInPartyNum    = 0;
-		mMaxPikiField     = 20;
-		mInParty2         = 50;
-		mOnMapMinusWild   = 60;
-		mMaxPikiMinusWild = 200;
-		mOnyonID          = -1;
-		mInTransfer       = 0;
-		mExitSoundType    = 0;
-		mState            = 0;
-		mResult           = 0;
-	}
+	inline DispMemberContena() { }
 
 	virtual u32 getSize() { return sizeof(DispMemberContena); } // _08 (weak)
 	virtual u32 getOwnerID() { return OWNER_OGA; }              // _0C (weak)
 	virtual u64 getMemberID() { return MEMBER_CONTENA; }        // _10 (weak)
 
+	inline DataContena* getDataContena() { return &mDataContena; }
+
 	// _00     = VTBL
 	// _00-_08 = DispMemberBase
-	int mOnyonID;          // _08
-	u32 mInOnion;          // _0C
-	int mCurrInMap;        // _10
-	u32 mNewInPartyNum;    // _14
-	int mMaxPikiField;     // _18
-	int mInParty2;         // _1C
-	u32 mOnMapMinusWild;   // _20
-	int mMaxPikiMinusWild; // _24
-	u32 mInTransfer;       // _28
-	bool mExitSoundType;   // _2C
-	int mState;            // _30
-	s16 mResult;           // _34
+	DataContena mDataContena; // _08
 };
 
 // size 0x10
@@ -472,10 +460,10 @@ struct DispMemberSMenuCont : public DispMemberBase {
 struct DispMemberSMenuItem : public DispMemberBase {
 	DispMemberSMenuItem()
 	{
-		mSpicySprayCount  = 111;
-		mSpicyBerryCount  = 22;
-		mBitterSprayCount = 333;
-		mBitterBerryCount = 44;
+		mBitterSprayCount = 111;
+		mBitterBerryCount = 22;
+		mSpicySprayCount  = 333;
+		mSpicyBerryCount  = 44;
 		for (int i = 0; i < 12; i++) {
 			mExplorationKitInventory[i] = 0;
 		}
@@ -489,10 +477,10 @@ struct DispMemberSMenuItem : public DispMemberBase {
 
 	// _00     = VTBL
 	// _00-_08 = DispMemberBase
-	u32 mSpicySprayCount;              // _08
-	u32 mSpicyBerryCount;              // _0C
-	u32 mBitterSprayCount;             // _10
-	u32 mBitterBerryCount;             // _14
+	u32 mBitterSprayCount;             // _08
+	u32 mBitterBerryCount;             // _0C
+	u32 mSpicySprayCount;              // _10
+	u32 mSpicyBerryCount;              // _14
 	bool mExplorationKitInventory[12]; // _18
 	bool mIsBitterUnlocked;            // _24, have made first bitter spray from berries
 	bool mIsSpicyUnlocked;             // _25, have made first spicy spray from berries
@@ -505,6 +493,7 @@ struct DispMemberSMenuMap : public DispMemberBase {
 		COURSE_Forest    = 1,
 		COURSE_Yakushima = 2,
 		COURSE_Last      = 3,
+		COURSE_Test      = 4,
 	};
 
 	DispMemberSMenuMap()
@@ -544,7 +533,7 @@ struct DispMemberSMenuPause : public DispMemberBase {
 	{
 		mDebtRemaining = 1234;
 		mPokoCount     = 2469;
-		mExitStatus    = 1;
+		mExitStatus    = MENUFINISH_GetFromSubMember;
 	}
 
 	virtual u32 getSize() { return sizeof(DispMemberSMenuPause); } // _08 (weak)
@@ -563,7 +552,7 @@ struct DispMemberSMenuPauseDoukutu : public DispMemberBase {
 
 	inline DispMemberSMenuPauseDoukutu()
 	{
-		mExitStatus    = 1;
+		mExitStatus    = MENUFINISH_GetFromSubMember;
 		mCavePokos     = 86;
 		mPreCavePokos  = 2469;
 		mPayDebt       = true;
@@ -677,11 +666,11 @@ struct DispMemberUfoMenu : public DispMemberBase {
 struct DispMemberUfoGroup : public DispMemberBase {
 	inline DispMemberUfoGroup()
 	{
-		mHasWhite          = false;
-		mHasPurple         = false;
-		mContena1.mOnyonID = 4;
-		mContena2.mOnyonID = 3;
-		mHasPaidDebt       = false;
+		mHasWhite                       = false;
+		mHasPurple                      = false;
+		mContena1.mDataContena.mOnyonID = Game::White;
+		mContena2.mDataContena.mOnyonID = Game::Purple;
+		mHasPaidDebt                    = false;
 	}
 
 	virtual u32 getSize() { return sizeof(DispMemberUfoGroup); } // _08 (weak)

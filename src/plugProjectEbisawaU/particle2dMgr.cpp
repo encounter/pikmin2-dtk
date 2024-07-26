@@ -9,6 +9,7 @@
 #include "TParticle2dMgr.h"
 #include "nans.h"
 
+static const char idk[] = "\0\0\0\0\0\0\0\0\0";
 TParticle2dMgr* particle2dMgr;
 TParticle2dMgr* TParticle2dMgr::_instance;
 
@@ -16,10 +17,7 @@ TParticle2dMgr* TParticle2dMgr::_instance;
  * @note Address: N/A
  * @note Size: 0xE4
  */
-static void _Print(char* name, ...) {
-	OSReport("\0\0\0\0\0\0\0\0\0\0\0"); // ???
-	OSReport("particle2dMgr");
-}
+static void _Print(char* name, ...) { OSReport("particle2dMgr"); }
 
 /**
  * @note Address: 0x803B9064
@@ -110,7 +108,7 @@ void TParticle2dMgr::createMgr(char* path, u32 u1, u32 u2, u32 u3)
 	backup->becomeCurrentHeap();
 
 	mResourceManager = new (mSolidHeap, 0) JPAResourceManager(file, mSolidHeap);
-	mActiveEmitter   = new (mSolidHeap, 0) JPAEmitterManager(a, b, mSolidHeap, 8, 2); // screaming shitting crying
+	mActiveEmitter   = new (mSolidHeap, 0) JPAEmitterManager(a, b, mSolidHeap, 8, 2);
 
 	mActiveEmitter->entryResourceManager(mResourceManager, 0);
 	mSolidHeap->adjustSize();
@@ -272,6 +270,8 @@ void TParticle2dMgr::killAll() { mActiveEmitter->forceDeleteAllEmitter(); }
  */
 void TParticle2dMgr::killGroup(u8 p1) { mActiveEmitter->forceDeleteGroupEmitter((int)p1); }
 
+static const char* dummy = "IP2_dummy";
+
 /**
  * @note Address: N/A
  * @note Size: 0x4
@@ -279,5 +279,4 @@ void TParticle2dMgr::killGroup(u8 p1) { mActiveEmitter->forceDeleteGroupEmitter(
 void TParticle2dMgr::showInfo(s32, s32, s32, s32)
 {
 	// UNUSED FUNCTION
-	OSReport("IP2_dummy");
 }

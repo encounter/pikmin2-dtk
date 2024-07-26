@@ -221,12 +221,17 @@ struct Matrixf {
 	}
 
 	// for navi_demoCheck.cpp
+	// getBasis(0) is for the Right Vector
+	// getBasis(1) is for the Up Vector
+	// getBasis(2) is for the Forward Vector
 	inline void getBasis(int index, Vector3f& out)
 	{
 		out.x = operator()(0, index);
 		out.y = operator()(1, index);
 		out.z = operator()(2, index);
 	}
+
+	inline Vector3f getBasis(int index) { return Vector3f(operator()(0, index), operator()(1, index), operator()(2, index)); }
 
 	/**
 	 * @brief Retrieves the column vector at the specified index.
@@ -358,6 +363,13 @@ struct Matrixf {
 	 */
 	inline void newTranslation(Vector3f in) { setColumn(3, in); }
 
+	inline void getSoundPosition(Vector3f& soundPos, Vector3f& newPos)
+	{
+		newPos.set(-(soundPos.x * mMatrix.mtxView[0][0] + soundPos.y * mMatrix.mtxView[0][1] + soundPos.z * mMatrix.mtxView[0][2]),
+		           -(soundPos.x * mMatrix.mtxView[1][0] + soundPos.y * mMatrix.mtxView[1][1] + soundPos.z * mMatrix.mtxView[1][2]),
+		           -(soundPos.x * mMatrix.mtxView[2][0] + soundPos.y * mMatrix.mtxView[2][1] + soundPos.z * mMatrix.mtxView[2][2]));
+	}
+
 	/**
 	 * @brief Scales the matrix by a scalar value.
 	 *
@@ -449,6 +461,35 @@ struct Matrixf {
 		(*this)(0, 3) = pos.x;
 		(*this)(1, 3) = pos.y;
 		(*this)(2, 3) = pos.z;
+	}
+
+	inline void setTransformationMtx2(Vector3f& angle, Vector3f& translation)
+	{
+		Vector3f direction(1.0f, 0.0f, 0.0f);
+		Vector3f cross;
+		cross.x = direction.y * angle.z - direction.z * angle.y;
+		cross.y = direction.z * angle.x - direction.x * angle.z;
+		cross.z = direction.x * angle.y - direction.y * angle.x;
+
+		Vector3f cross2;
+		cross2.x = angle.y * cross.z - angle.z * cross.y;
+		cross2.y = angle.z * cross.x - angle.x * cross.z;
+		cross2.z = angle.x * cross.y - angle.y * cross.x;
+
+		(*this)(0, 0) = cross2.x;
+		(*this)(0, 1) = angle.x;
+		(*this)(0, 2) = cross.x;
+		(*this)(0, 3) = translation.x;
+
+		(*this)(1, 0) = cross2.y;
+		(*this)(1, 1) = angle.y;
+		(*this)(1, 2) = cross.y;
+		(*this)(1, 3) = translation.y;
+
+		(*this)(2, 0) = cross2.z;
+		(*this)(2, 1) = angle.z;
+		(*this)(2, 2) = cross.z;
+		(*this)(2, 3) = translation.z;
 	}
 
 	/**

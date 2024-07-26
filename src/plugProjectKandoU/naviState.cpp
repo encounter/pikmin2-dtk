@@ -25,6 +25,7 @@
 #include "Game/CPlate.h"
 #include "Screen/Game2DMgr.h"
 #include "utilityU.h"
+#include "JSystem/JUtility/JUTGamePad.h"
 
 int unusedNaviStateArray[] = { 1, 2, 3, 0 }; // ?
 
@@ -452,7 +453,7 @@ void NaviWalkState::exec(Navi* navi)
 				}
 			}
 
-			if (navi->mController1->isButton(JUTGamePad::PRESS_X)) {
+			if (navi->mController1->isButtonHeld(JUTGamePad::PRESS_X)) {
 				if (mDismissTimer != 0) {
 					mDismissTimer++;
 
@@ -688,15 +689,16 @@ void NaviWalkState::execAI_wait(Navi* navi)
 	if (mTarget) {
 		Vector3f naviPos   = navi->getPosition();
 		Vector3f targetPos = mTarget->getPosition();
-		if (sqrDistanceXZ(naviPos, targetPos) > 10000.0f) {
+		Vector3f sep       = naviPos - targetPos;
+		f32 rad            = 100.0f;
+		if (sep.sqrMagnitude2D() > SQUARE(rad)) {
 			mTarget = nullptr;
 			return;
 		}
 
-		Vector3f sep = Vector3f(targetPos.x - naviPos.x, 0.0f, targetPos.z - naviPos.z);
-		sep.normalise();
+		Vector3f::getFlatDirectionFromTo(naviPos, targetPos);
 
-		navi->mFaceDir += 0.2f * angDist(roundAng(JMath::atanTable_.atan2_(sep.x, sep.z)), navi->mFaceDir);
+		navi->mFaceDir += 0.2f * angDist(roundAng(JMAAtan2Radian(targetPos.x, targetPos.z)), navi->mFaceDir);
 		navi->mFaceDir = roundAng(navi->mFaceDir);
 	}
 	/*
@@ -988,15 +990,12 @@ void NaviWalkState::execAI_escape(Navi* navi)
 
 	// some dumb regswaps in here
 	if (dist > 15.0f) {
-		f32 x = -sep.x;
-		f32 z = sep.z;
-		sep.x = z;
-		sep.z = x;
+		Vector3f oldSep = Vector3f(-sep.x, 0.0f, sep.z);
+		sep.x           = oldSep.z;
+		sep.z           = oldSep.x;
 		if (!mIsEscapeCCW) {
-			f32 x2 = -(f32)(f64)x;
-			f32 z2 = -z;
-			sep.x  = z2;
-			sep.z  = x2;
+			sep.x = -oldSep.z;
+			sep.z = -(f32)(f64)oldSep.x;
 		}
 	}
 
@@ -1261,8 +1260,10 @@ void NaviFollowState::init(Navi* navi, StateArg* stateArg)
 {
 	NaviFollowArg* followArg = static_cast<NaviFollowArg*>(stateArg);
 	if (followArg && followArg->mIsNewToParty) {
+
 		navi->startMotion(IPikiAnims::KIZUKU, IPikiAnims::KIZUKU, navi, nullptr);
-		_14 = 0;
+		mFollowState = FOLLOW_AlertJump;
+
 		if (navi->mNaviIndex == NAVIID_Olimar) {
 			navi->mSoundObj->startSound(PSSE_PL_BIKU_ORIMA, 0);
 
@@ -1272,15 +1273,16 @@ void NaviFollowState::init(Navi* navi, StateArg* stateArg)
 		} else {
 			navi->mSoundObj->startSound(PSSE_PL_BIKU_LUGI, 0);
 		}
+
 	} else {
-		_14 = 1;
+		mFollowState = FOLLOW_Normal;
 		navi->startMotion(IPikiAnims::WALK, IPikiAnims::WALK, nullptr, nullptr);
 	}
 
 	mTargetNavi = naviMgr->getAt(GET_OTHER_NAVI(navi));
 	navi->setMoveRotation(true);
-	_1C       = 0;
-	mRunEnemy = nullptr;
+	mIdleCounter = 0;
+	mTargetEnemy = nullptr;
 }
 
 /**
@@ -1290,15 +1292,15 @@ void NaviFollowState::init(Navi* navi, StateArg* stateArg)
 void NaviFollowState::onKeyEvent(Navi* navi, SysShape::KeyEvent const& event)
 {
 	if (event.mType == KEYEVENT_END) {
-		switch (_14) {
-		case 0:
-			_14 = 1;
+		switch (mFollowState) {
+		case FOLLOW_AlertJump:
+			mFollowState = FOLLOW_Normal;
 			navi->startMotion(IPikiAnims::WALK, IPikiAnims::WALK, nullptr, nullptr);
 			break;
 
-		case 2:
-			_1C = 0;
-			_14 = 1;
+		case FOLLOW_IdleGoof:
+			mIdleCounter = 0;
+			mFollowState = FOLLOW_Normal;
 			navi->startMotion(IPikiAnims::WAIT, IPikiAnims::WAIT, nullptr, nullptr);
 			break;
 		}
@@ -1344,9 +1346,9 @@ void NaviFollowState::exec(Navi* navi)
 		return;
 	}
 
-	if (!_14) {
+	if (mFollowState == FOLLOW_AlertJump) {
 		if (!navi->assertMotion(IPikiAnims::KIZUKU)) {
-			_14 = true;
+			mFollowState = FOLLOW_Normal;
 			navi->startMotion(IPikiAnims::WALK, IPikiAnims::WALK, nullptr, nullptr);
 		}
 		navi->mTargetVelocity = 0.0f;
@@ -1358,112 +1360,141 @@ void NaviFollowState::exec(Navi* navi)
 		return;
 	}
 
-	if (_14 == 3) {
-		if (!mRunEnemy || !mRunEnemy->isAlive() || mRunEnemy->isFlying() || mRunEnemy->isUnderground()) {
-			_14       = 1;
-			mRunEnemy = nullptr;
+	if (mFollowState == FOLLOW_PunchTarget) {
+		// put us back to normal follow if target is Weird (doesnt exist, is dead already, is flying or underground)
+		if (!mTargetEnemy || !mTargetEnemy->isAlive() || mTargetEnemy->isFlying() || mTargetEnemy->isUnderground()) {
+			mFollowState = FOLLOW_Normal;
+			mTargetEnemy = nullptr;
 			navi->startMotion(IPikiAnims::WALK, IPikiAnims::WALK, nullptr, nullptr);
+
 		} else {
+			// PUNCH TARGET TOO! TAKE THAT! GANG VIOLENCE!
 			Sys::Sphere targetPos;
-			mRunEnemy->getBoundingSphere(targetPos);
-			Vector3f diff    = targetPos.mPosition;
-			Vector3f naviPos = navi->getPosition();
-			diff -= naviPos;
-			f32 dist = diff.normalise();
+			mTargetEnemy->getBoundingSphere(targetPos);
+
+			Vector3f targetDir = targetPos.mPosition;
+			Vector3f naviPos   = navi->getPosition();
+			targetDir          = targetDir - naviPos;
+			f32 dist           = targetDir.normalise();
 			if (dist - targetPos.mRadius < 8.0f) {
+				// CLOSE ENOUGH, PUNCH TARGET
 				navi->turnTo(targetPos.mPosition);
 				NaviPunchArg arg;
-				arg._00 = 1;
-				arg._04 = 1;
+				arg.mIsFollowing = true;
+				arg.mNextState   = NSID_Follow;
 				transit(navi, NSID_Punch, &arg);
+
 			} else {
-				if (++_1E >= 60) {
-					_14 = 1;
+				if (++mPunchSeekCounter >= 60) {
+					// we tried for 2 whole seconds, give up on punching target.
+					mFollowState = FOLLOW_Normal;
 					navi->startMotion(IPikiAnims::WALK, IPikiAnims::WALK, nullptr, nullptr);
-					mRunEnemy = nullptr;
+					mTargetEnemy = nullptr;
+
 				} else {
+					// WE ARE A TARGET-SEEKING PUNCHING MISSILE
 					navi->control();
-					f32 rate              = naviMgr->mNaviParms->mNaviParms.mMoveSpeed() * 0.5f;
-					navi->mTargetVelocity = diff * rate;
+					f32 speed             = naviMgr->mNaviParms->mNaviParms.mMoveSpeed() * 0.5f;
+					navi->mTargetVelocity = targetDir * speed;
 				}
 			}
 		}
 		return;
 	}
 
-	f32 dist    = mTargetNavi->mVelocity.length();
-	bool isNear = false;
-	if (dist > 20.0f) {
-		isNear = true;
+	f32 leaderSpeed     = mTargetNavi->mVelocity.length();
+	bool isLeaderMoving = false;
+	if (leaderSpeed > 20.0f) {
+		isLeaderMoving = true;
 	}
-	if (_14 == 2) {
-		if (isNear) {
+
+	// we're meant to be goofing!
+	if (mFollowState == FOLLOW_IdleGoof) {
+		if (isLeaderMoving) {
+			// NO TIME TO GOOF!
+			// make the lil startled jump
 			navi->startMotion(IPikiAnims::KIZUKU, IPikiAnims::KIZUKU, navi, nullptr);
-			_14 = 0;
+			mFollowState = FOLLOW_AlertJump;
+
 		} else {
+			// try and do lil idle goof
 			navi->mTargetVelocity = Vector3f(0.0f);
 			if (!navi->assertMotion(mAnimID)) {
-				_14 = 1;
+				// if goof fails or we're done goofing, go back to normal follow
+				mFollowState = FOLLOW_Normal;
 				navi->startMotion(IPikiAnims::WALK, IPikiAnims::WALK, nullptr, nullptr);
 			}
 		}
 		return;
 	}
 
-	if (isNear) {
-		_1C = 0;
-	} else if (_1C < 90) {
-		_1C++;
+	if (isLeaderMoving) {
+		mIdleCounter = 0;
+
+	} else if (mIdleCounter < 90) {
+		mIdleCounter++;
+
 	} else {
+		// TIME TO GOOF AGAIN
+
+		// choose between these 4 goofs with uniform chance
 		KandoLib::Choice choice[4] = {
 			{ IPikiAnims::JUMP, 0.25f }, { IPikiAnims::AKUBI, 0.25f }, { IPikiAnims::CHATTING, 0.25f }, { IPikiAnims::SAGASU2, 0.25f }
 		};
+
 		int animIdx = KandoLib::getRandomChoice(choice, 4);
 		mAnimID     = animIdx;
 		navi->startMotion(animIdx, animIdx, navi, nullptr);
-		_14 = 2;
+		mFollowState = FOLLOW_IdleGoof;
 		if (gameSystem && !gameSystem->mIsFrozen) {
-			int id = navi->mNaviIndex;
-			if (id == 1 && gameSystem->isStoryMode() && playData->mStoryFlags & STORY_DebtPaid) {
-				id++;
+			// get right id for each navi for sounds
+			// 0 for olimar, 1 for louie, or 2 for president
+			int naviID = navi->mNaviIndex;
+			if (naviID == NAVIID_Louie && gameSystem->isStoryMode() && playData->mStoryFlags & STORY_DebtPaid) {
+				naviID++;
 			}
 
+			// make appropriate sound
 			switch (animIdx) {
 			case IPikiAnims::CHATTING:
-				navi->mSoundObj->startSound(se_chats[id], nullptr);
+				navi->mSoundObj->startSound(se_chats[naviID], nullptr);
 				break;
 			case IPikiAnims::AKUBI:
-				navi->mSoundObj->startSound(se_novis[id], nullptr);
+				navi->mSoundObj->startSound(se_novis[naviID], nullptr);
 				break;
 			case IPikiAnims::JUMP:
-				navi->mSoundObj->startSound(se_jumps[id], nullptr);
+				navi->mSoundObj->startSound(se_jumps[naviID], nullptr);
 				break;
 			case IPikiAnims::SAGASU2:
-				navi->mSoundObj->startSound(se_kyoros[id], nullptr);
+				navi->mSoundObj->startSound(se_kyoros[naviID], nullptr);
 				break;
 			}
 		}
 	}
 
-	Vector3f vel = mTargetNavi->getPosition();
-	f32 angle    = mTargetNavi->getFaceDir();
-	int state    = mTargetNavi->getStateID();
-	if (!isNear && (state == NSID_Throw || state == NSID_ThrowWait)) {
-		// this float is literally 0x1 off in the sdata2
-		Vector3f dir = getDirection(TORADIANS(80.9999961f) + angle, 30.0f);
-		vel += dir;
-	} else if (state == NSID_Punch) {
-		f32 rad      = -mTargetNavi->mCPlateMgr->mBaseRadius;
-		Vector3f dir = getDirection(angle, rad);
-		vel += dir;
+	Vector3f targetPos = mTargetNavi->getPosition();
+	f32 leaderAngle    = mTargetNavi->getFaceDir();
+	int leaderState    = mTargetNavi->getStateID();
+
+	if (!isLeaderMoving && (leaderState == NSID_Throw || leaderState == NSID_ThrowWait)) {
+		// if leader is throwing, adjust target position
+		// THIS IS WHAT CAUSES CAPTAINS TO PUSH EACH OTHER WHILE THROWING SMH
+		Vector3f offset = getDirection(1.4137167f + leaderAngle, 30.0f); // about 81 degrees CCW from leader angle
+		targetPos += offset;
+	} else if (leaderState == NSID_Punch) {
+		f32 rad         = -mTargetNavi->mCPlateMgr->mBaseRadius;
+		Vector3f offset = getDirection(leaderAngle, rad);
+		targetPos += offset;
 	}
 
-	Vector3f targetVel = mTargetNavi->mTargetVelocity; // f28, f27, f26
+	Vector3f targetVel = mTargetNavi->mTargetVelocity;
 	Vector3f naviPos   = navi->getPosition();
 
-	Vector3f newVel = vel - naviPos;
-	f32 oldSpeed    = newVel.normalise(); // f31
+	// get the direction we're gonna wanna move in
+	Vector3f newVel = targetPos - naviPos;
+	f32 targetDist  = newVel.normalise();
 
+	// speed based on if we have rush boots or not
 	f32 newSpeed;
 	if (navi->getOlimarData()->hasItem(OlimarData::ODII_RepugnantAppendage)) {
 		newSpeed = naviMgr->mNaviParms->mNaviParms.mRushBootSpeed();
@@ -1471,740 +1502,27 @@ void NaviFollowState::exec(Navi* navi)
 		newSpeed = naviMgr->mNaviParms->mNaviParms.mMoveSpeed();
 	}
 
-	if (oldSpeed < 30.0f) {
+	// don't bother moving if we're already within 30 units of the leader
+	if (targetDist < 30.0f) {
 		newSpeed = 0.0f;
 	}
 
 	newVel *= newSpeed;
 
-	if (oldSpeed < 60.0f) {
+	// if we're within 60 units, do a simple averaged velocity to drop us into position
+	if (targetDist < 60.0f) {
 		newVel = newVel * 0.5f + targetVel * 0.5f;
 	}
 
-	if (oldSpeed > 430.0f) {
+	// we're too far away (probably stuck), put us out of the party
+	if (targetDist > 430.0f) {
 		transit(navi, NSID_Walk, nullptr);
 		return;
 	}
 
+	// move!
 	navi->control();
 	navi->mTargetVelocity = newVel;
-
-	/*
-	stwu     r1, -0x110(r1)
-	mflr     r0
-	stw      r0, 0x114(r1)
-	stfd     f31, 0x100(r1)
-	psq_st   f31, 264(r1), 0, qr0
-	stfd     f30, 0xf0(r1)
-	psq_st   f30, 248(r1), 0, qr0
-	stfd     f29, 0xe0(r1)
-	psq_st   f29, 232(r1), 0, qr0
-	stfd     f28, 0xd0(r1)
-	psq_st   f28, 216(r1), 0, qr0
-	stfd     f27, 0xc0(r1)
-	psq_st   f27, 200(r1), 0, qr0
-	stfd     f26, 0xb0(r1)
-	psq_st   f26, 184(r1), 0, qr0
-	stfd     f25, 0xa0(r1)
-	psq_st   f25, 168(r1), 0, qr0
-	stmw     r27, 0x8c(r1)
-	lwz      r6, moviePlayer__4Game@sda21(r13)
-	lis      r5, lbl_804B2D40@ha
-	mr       r28, r3
-	mr       r29, r4
-	cmplwi   r6, 0
-	addi     r31, r5, lbl_804B2D40@l
-	beq      lbl_801804B4
-	lwz      r0, 0x18(r6)
-	cmpwi    r0, 0
-	bne      lbl_80180D98
-
-	lbl_801804B4:
-	lwz      r0, 0x278(r29)
-	cmplwi   r0, 0
-	beq      lbl_801804E4
-	mr       r3, r28
-	mr       r4, r29
-	lwz      r12, 0(r28)
-	li       r5, 0
-	li       r6, 0
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	b        lbl_80180D98
-
-	lbl_801804E4:
-	lbz      r0, 0x14(r28)
-	cmplwi   r0, 0
-	bne      lbl_80180544
-	mr       r3, r29
-	li       r4, 0x20
-	bl       assertMotion__Q24Game8FakePikiFi
-	clrlwi.  r0, r3, 0x18
-	bne      lbl_80180530
-	li       r0, 1
-	mr       r3, r29
-	stb      r0, 0x14(r28)
-	li       r4, 0x1e
-	li       r5, 0x1e
-	li       r6, 0
-	lwz      r12, 0(r29)
-	li       r7, 0
-	lwz      r12, 0x208(r12)
-	mtctr    r12
-	bctrl
-
-	lbl_80180530:
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	stfs     f0, 0x1e4(r29)
-	stfs     f0, 0x1e8(r29)
-	stfs     f0, 0x1ec(r29)
-	b        lbl_80180D98
-
-	lbl_80180544:
-	lwz      r3, 0x10(r28)
-	bl       isStickTo__Q24Game8CreatureFv
-	clrlwi.  r0, r3, 0x18
-	beq      lbl_80180578
-	mr       r3, r28
-	mr       r4, r29
-	lwz      r12, 0(r28)
-	li       r5, 0
-	li       r6, 0
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	b        lbl_80180D98
-
-	lbl_80180578:
-	lbz      r0, 0x14(r28)
-	cmplwi   r0, 3
-	bne      lbl_801807A8
-	lwz      r3, 0x18(r28)
-	cmplwi   r3, 0
-	beq      lbl_801805E0
-	lwz      r12, 0(r3)
-	lwz      r12, 0xa8(r12)
-	mtctr    r12
-	bctrl
-	clrlwi.  r0, r3, 0x18
-	beq      lbl_801805E0
-	lwz      r3, 0x18(r28)
-	lwz      r12, 0(r3)
-	lwz      r12, 0xcc(r12)
-	mtctr    r12
-	bctrl
-	clrlwi.  r0, r3, 0x18
-	bne      lbl_801805E0
-	lwz      r3, 0x18(r28)
-	lwz      r12, 0(r3)
-	lwz      r12, 0xd0(r12)
-	mtctr    r12
-	bctrl
-	clrlwi.  r0, r3, 0x18
-	beq      lbl_80180618
-
-	lbl_801805E0:
-	li       r3, 1
-	li       r0, 0
-	stb      r3, 0x14(r28)
-	mr       r3, r29
-	li       r4, 0x1e
-	li       r5, 0x1e
-	stw      r0, 0x18(r28)
-	li       r6, 0
-	li       r7, 0
-	lwz      r12, 0(r29)
-	lwz      r12, 0x208(r12)
-	mtctr    r12
-	bctrl
-	b        lbl_80180D98
-
-	lbl_80180618:
-	lwz      r3, 0x18(r28)
-	addi     r4, r1, 0x34
-	lwz      r12, 0(r3)
-	lwz      r12, 0x10(r12)
-	mtctr    r12
-	bctrl
-	mr       r4, r29
-	addi     r3, r1, 0x28
-	lwz      r12, 0(r29)
-	lfs      f25, 0x34(r1)
-	lwz      r12, 8(r12)
-	lfs      f26, 0x38(r1)
-	lfs      f27, 0x3c(r1)
-	mtctr    r12
-	bctrl
-	lfs      f0, 0x2c(r1)
-	lfs      f2, 0x28(r1)
-	fsubs    f26, f26, f0
-	lfs      f1, 0x30(r1)
-	fsubs    f25, f25, f2
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	fsubs    f27, f27, f1
-	fmuls    f1, f26, f26
-	fmuls    f2, f27, f27
-	fmadds   f1, f25, f25, f1
-	fadds    f2, f2, f1
-	fcmpo    cr0, f2, f0
-	ble      lbl_80180698
-	ble      lbl_8018069C
-	frsqrte  f0, f2
-	fmuls    f2, f0, f2
-	b        lbl_8018069C
-
-	lbl_80180698:
-	fmr      f2, f0
-
-	lbl_8018069C:
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	fcmpo    cr0, f2, f0
-	ble      lbl_801806C0
-	lfs      f0, lbl_80518C48@sda21(r2)
-	fdivs    f0, f0, f2
-	fmuls    f25, f25, f0
-	fmuls    f26, f26, f0
-	fmuls    f27, f27, f0
-	b        lbl_801806C4
-
-	lbl_801806C0:
-	fmr      f2, f0
-
-	lbl_801806C4:
-	lfs      f1, 0x40(r1)
-	lfs      f0, lbl_80518C58@sda21(r2)
-	fsubs    f1, f2, f1
-	fcmpo    cr0, f1, f0
-	bge      lbl_80180720
-	mr       r3, r29
-	addi     r4, r1, 0x34
-	bl       "turnTo__Q24Game8FakePikiFR10Vector3<f>"
-	li       r5, 0
-	li       r0, 1
-	stb      r5, 8(r1)
-	mr       r3, r28
-	mr       r4, r29
-	addi     r6, r1, 8
-	stw      r5, 0xc(r1)
-	li       r5, 2
-	stb      r0, 8(r1)
-	stw      r0, 0xc(r1)
-	lwz      r12, 0(r28)
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	b        lbl_80180D98
-
-	lbl_80180720:
-	lbz      r3, 0x1e(r28)
-	addi     r3, r3, 1
-	clrlwi   r0, r3, 0x18
-	stb      r3, 0x1e(r28)
-	cmplwi   r0, 0x3c
-	blt      lbl_80180770
-	li       r0, 1
-	mr       r3, r29
-	stb      r0, 0x14(r28)
-	li       r4, 0x1e
-	li       r5, 0x1e
-	li       r6, 0
-	lwz      r12, 0(r29)
-	li       r7, 0
-	lwz      r12, 0x208(r12)
-	mtctr    r12
-	bctrl
-	li       r0, 0
-	stw      r0, 0x18(r28)
-	b        lbl_80180D98
-
-	lbl_80180770:
-	mr       r3, r29
-	bl       control__Q24Game4NaviFv
-	lwz      r3, naviMgr__4Game@sda21(r13)
-	lfs      f1, lbl_80518C04@sda21(r2)
-	lwz      r3, 0xc8(r3)
-	lfs      f0, 0x3b8(r3)
-	fmuls    f0, f1, f0
-	fmuls    f2, f25, f0
-	fmuls    f1, f26, f0
-	fmuls    f0, f27, f0
-	stfs     f2, 0x1e4(r29)
-	stfs     f1, 0x1e8(r29)
-	stfs     f0, 0x1ec(r29)
-	b        lbl_80180D98
-
-	lbl_801807A8:
-	lwz      r3, 0x10(r28)
-	lfs      f1, lbl_80518BE0@sda21(r2)
-	lfs      f3, 0x200(r3)
-	lfs      f2, 0x204(r3)
-	fmuls    f0, f3, f3
-	lfs      f4, 0x208(r3)
-	fmuls    f2, f2, f2
-	fmuls    f4, f4, f4
-	fadds    f0, f0, f2
-	fadds    f0, f4, f0
-	fcmpo    cr0, f0, f1
-	ble      lbl_801807F4
-	fmadds   f0, f3, f3, f2
-	fadds    f2, f4, f0
-	fcmpo    cr0, f2, f1
-	ble      lbl_801807F8
-	frsqrte  f0, f2
-	fmuls    f2, f0, f2
-	b        lbl_801807F8
-
-	lbl_801807F4:
-	fmr      f2, f1
-
-	lbl_801807F8:
-	lfs      f0, lbl_80518C5C@sda21(r2)
-	li       r30, 0
-	fcmpo    cr0, f2, f0
-	ble      lbl_8018080C
-	li       r30, 1
-
-	lbl_8018080C:
-	cmplwi   r0, 2
-	bne      lbl_801808AC
-	clrlwi.  r0, r30, 0x18
-	beq      lbl_80180858
-	cmplwi   r29, 0
-	mr       r6, r29
-	beq      lbl_8018082C
-	addi     r6, r29, 0x178
-
-	lbl_8018082C:
-	lwz      r12, 0(r29)
-	mr       r3, r29
-	li       r4, 0x20
-	li       r5, 0x20
-	lwz      r12, 0x208(r12)
-	li       r7, 0
-	mtctr    r12
-	bctrl
-	li       r0, 0
-	stb      r0, 0x14(r28)
-	b        lbl_80180D98
-
-	lbl_80180858:
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	mr       r3, r29
-	stfs     f0, 0x1e4(r29)
-	stfs     f0, 0x1e8(r29)
-	stfs     f0, 0x1ec(r29)
-	lbz      r4, 0x1d(r28)
-	bl       assertMotion__Q24Game8FakePikiFi
-	clrlwi.  r0, r3, 0x18
-	bne      lbl_80180D98
-	li       r0, 1
-	mr       r3, r29
-	stb      r0, 0x14(r28)
-	li       r4, 0x1e
-	li       r5, 0x1e
-	li       r6, 0
-	lwz      r12, 0(r29)
-	li       r7, 0
-	lwz      r12, 0x208(r12)
-	mtctr    r12
-	bctrl
-	b        lbl_80180D98
-
-	lbl_801808AC:
-	clrlwi.  r0, r30, 0x18
-	beq      lbl_801808C0
-	li       r0, 0
-	stb      r0, 0x1c(r28)
-	b        lbl_80180A7C
-
-	lbl_801808C0:
-	lbz      r3, 0x1c(r28)
-	cmplwi   r3, 0x5a
-	bge      lbl_801808D8
-	addi     r0, r3, 1
-	stb      r0, 0x1c(r28)
-	b        lbl_80180A7C
-
-	lbl_801808D8:
-	lis      r4, lbl_8047EB20@ha
-	addi     r3, r1, 0x44
-	addi     r12, r4, lbl_8047EB20@l
-	li       r4, 4
-	lwz      r11, 0(r12)
-	lwz      r10, 4(r12)
-	lwz      r9, 8(r12)
-	lwz      r8, 0xc(r12)
-	lwz      r7, 0x10(r12)
-	lwz      r6, 0x14(r12)
-	lwz      r5, 0x18(r12)
-	lwz      r0, 0x1c(r12)
-	stw      r11, 0x44(r1)
-	stw      r10, 0x48(r1)
-	stw      r9, 0x4c(r1)
-	stw      r8, 0x50(r1)
-	stw      r7, 0x54(r1)
-	stw      r6, 0x58(r1)
-	stw      r5, 0x5c(r1)
-	stw      r0, 0x60(r1)
-	bl       getRandomChoice__8KandoLibFPQ28KandoLib6Choicei
-	mr       r27, r3
-	cmplwi   r29, 0
-	stb      r27, 0x1d(r28)
-	mr       r6, r29
-	beq      lbl_80180944
-	addi     r6, r29, 0x178
-
-	lbl_80180944:
-	lwz      r12, 0(r29)
-	mr       r3, r29
-	mr       r4, r27
-	mr       r5, r27
-	lwz      r12, 0x208(r12)
-	li       r7, 0
-	mtctr    r12
-	bctrl
-	li       r0, 2
-	stb      r0, 0x14(r28)
-	lwz      r3, gameSystem__4Game@sda21(r13)
-	cmplwi   r3, 0
-	beq      lbl_80180A7C
-	lbz      r0, 0x4a(r3)
-	cmplwi   r0, 0
-	bne      lbl_80180A7C
-	lhz      r4, 0x2dc(r29)
-	cmpwi    r4, 1
-	bne      lbl_801809B0
-	lwz      r0, 0x44(r3)
-	cmpwi    r0, 0
-	bne      lbl_801809B0
-	lwz      r3, playData__4Game@sda21(r13)
-	lbz      r0, 0x2f(r3)
-	clrlwi.  r0, r0, 0x1f
-	beq      lbl_801809B0
-	addi     r4, r4, 1
-
-	lbl_801809B0:
-	cmpwi    r27, 0x32
-	beq      lbl_80180A30
-	bge      lbl_801809D4
-	cmpwi    r27, 3
-	beq      lbl_801809E0
-	bge      lbl_80180A7C
-	cmpwi    r27, 0
-	beq      lbl_80180A08
-	b        lbl_80180A7C
-
-	lbl_801809D4:
-	cmpwi    r27, 0x36
-	beq      lbl_80180A58
-	b        lbl_80180A7C
-
-	lbl_801809E0:
-	lwz      r3, 0x26c(r29)
-	slwi     r0, r4, 2
-	addi     r4, r31, 0x28
-	li       r5, 0
-	lwz      r12, 0x28(r3)
-	lwzx     r4, r4, r0
-	lwz      r12, 0x7c(r12)
-	mtctr    r12
-	bctrl
-	b        lbl_80180A7C
-
-	lbl_80180A08:
-	lwz      r3, 0x26c(r29)
-	slwi     r0, r4, 2
-	addi     r4, r31, 0x40
-	li       r5, 0
-	lwz      r12, 0x28(r3)
-	lwzx     r4, r4, r0
-	lwz      r12, 0x7c(r12)
-	mtctr    r12
-	bctrl
-	b        lbl_80180A7C
-
-	lbl_80180A30:
-	lwz      r3, 0x26c(r29)
-	slwi     r0, r4, 2
-	addi     r4, r31, 0x4c
-	li       r5, 0
-	lwz      r12, 0x28(r3)
-	lwzx     r4, r4, r0
-	lwz      r12, 0x7c(r12)
-	mtctr    r12
-	bctrl
-	b        lbl_80180A7C
-
-	lbl_80180A58:
-	lwz      r3, 0x26c(r29)
-	slwi     r0, r4, 2
-	addi     r4, r31, 0x58
-	li       r5, 0
-	lwz      r12, 0x28(r3)
-	lwzx     r4, r4, r0
-	lwz      r12, 0x7c(r12)
-	mtctr    r12
-	bctrl
-
-	lbl_80180A7C:
-	lwz      r4, 0x10(r28)
-	addi     r3, r1, 0x1c
-	lwz      r12, 0(r4)
-	lwz      r12, 8(r12)
-	mtctr    r12
-	bctrl
-	lwz      r3, 0x10(r28)
-	lfs      f31, 0x1c(r1)
-	lwz      r12, 0(r3)
-	lfs      f30, 0x20(r1)
-	lwz      r12, 0x64(r12)
-	lfs      f29, 0x24(r1)
-	mtctr    r12
-	bctrl
-	fmr      f25, f1
-	lwz      r3, 0x10(r28)
-	bl       getStateID__Q24Game4NaviFv
-	clrlwi.  r0, r30, 0x18
-	bne      lbl_80180B84
-	cmpwi    r3, 5
-	beq      lbl_80180AD8
-	cmpwi    r3, 6
-	bne      lbl_80180B84
-
-	lbl_80180AD8:
-	lfs      f1, lbl_80518C60@sda21(r2)
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	fadds    f5, f1, f25
-	fmr      f1, f5
-	fcmpo    cr0, f5, f0
-	bge      lbl_80180AF4
-	fneg     f1, f5
-
-	lbl_80180AF4:
-	lfs      f2, lbl_80518BE8@sda21(r2)
-	lis      r3, sincosTable___5JMath@ha
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	addi     r4, r3, sincosTable___5JMath@l
-	fmuls    f1, f1, f2
-	lfs      f3, lbl_80518C64@sda21(r2)
-	fcmpo    cr0, f5, f0
-	fctiwz   f0, f1
-	stfd     f0, 0x68(r1)
-	lwz      r0, 0x6c(r1)
-	rlwinm   r0, r0, 3, 0x12, 0x1c
-	add      r3, r4, r0
-	lfs      f0, 4(r3)
-	fmuls    f4, f3, f0
-	bge      lbl_80180B54
-	lfs      f0, lbl_80518BEC@sda21(r2)
-	fmuls    f0, f5, f0
-	fctiwz   f0, f0
-	stfd     f0, 0x70(r1)
-	lwz      r0, 0x74(r1)
-	rlwinm   r0, r0, 3, 0x12, 0x1c
-	lfsx     f0, r4, r0
-	fneg     f0, f0
-	b        lbl_80180B6C
-
-	lbl_80180B54:
-	fmuls    f0, f5, f2
-	fctiwz   f0, f0
-	stfd     f0, 0x78(r1)
-	lwz      r0, 0x7c(r1)
-	rlwinm   r0, r0, 3, 0x12, 0x1c
-	lfsx     f0, r4, r0
-
-	lbl_80180B6C:
-	fmuls    f1, f3, f0
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	fadds    f29, f29, f4
-	fadds    f30, f30, f0
-	fadds    f31, f31, f1
-	b        lbl_80180C38
-
-	lbl_80180B84:
-	cmpwi    r3, 2
-	bne      lbl_80180C38
-	lwz      r3, 0x10(r28)
-	fmr      f1, f25
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	lwz      r3, 0x254(r3)
-	fcmpo    cr0, f25, f0
-	lfs      f0, 0xb0(r3)
-	fneg     f4, f0
-	bge      lbl_80180BB0
-	fneg     f1, f25
-
-	lbl_80180BB0:
-	lfs      f2, lbl_80518BE8@sda21(r2)
-	lis      r3, sincosTable___5JMath@ha
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	addi     r4, r3, sincosTable___5JMath@l
-	fmuls    f1, f1, f2
-	fcmpo    cr0, f25, f0
-	fctiwz   f0, f1
-	stfd     f0, 0x78(r1)
-	lwz      r0, 0x7c(r1)
-	rlwinm   r0, r0, 3, 0x12, 0x1c
-	add      r3, r4, r0
-	lfs      f0, 4(r3)
-	fmuls    f3, f4, f0
-	bge      lbl_80180C0C
-	lfs      f0, lbl_80518BEC@sda21(r2)
-	fmuls    f0, f25, f0
-	fctiwz   f0, f0
-	stfd     f0, 0x70(r1)
-	lwz      r0, 0x74(r1)
-	rlwinm   r0, r0, 3, 0x12, 0x1c
-	lfsx     f0, r4, r0
-	fneg     f0, f0
-	b        lbl_80180C24
-
-	lbl_80180C0C:
-	fmuls    f0, f25, f2
-	fctiwz   f0, f0
-	stfd     f0, 0x68(r1)
-	lwz      r0, 0x6c(r1)
-	rlwinm   r0, r0, 3, 0x12, 0x1c
-	lfsx     f0, r4, r0
-
-	lbl_80180C24:
-	fmuls    f1, f4, f0
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	fadds    f29, f29, f3
-	fadds    f30, f30, f0
-	fadds    f31, f31, f1
-
-	lbl_80180C38:
-	mr       r4, r29
-	lwz      r5, 0x10(r28)
-	lwz      r12, 0(r29)
-	addi     r3, r1, 0x10
-	lfs      f28, 0x1e4(r5)
-	lwz      r12, 8(r12)
-	lfs      f27, 0x1e8(r5)
-	lfs      f26, 0x1ec(r5)
-	mtctr    r12
-	bctrl
-	lfs      f0, 0x14(r1)
-	lfs      f2, 0x18(r1)
-	fsubs    f30, f30, f0
-	lfs      f1, 0x10(r1)
-	fsubs    f25, f29, f2
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	fsubs    f29, f31, f1
-	fmuls    f1, f30, f30
-	fmuls    f2, f25, f25
-	fmadds   f1, f29, f29, f1
-	fadds    f31, f2, f1
-	fcmpo    cr0, f31, f0
-	ble      lbl_80180CA4
-	ble      lbl_80180CA8
-	frsqrte  f0, f31
-	fmuls    f31, f0, f31
-	b        lbl_80180CA8
-
-	lbl_80180CA4:
-	fmr      f31, f0
-
-	lbl_80180CA8:
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	fcmpo    cr0, f31, f0
-	ble      lbl_80180CCC
-	lfs      f0, lbl_80518C48@sda21(r2)
-	fdivs    f0, f0, f31
-	fmuls    f29, f29, f0
-	fmuls    f30, f30, f0
-	fmuls    f25, f25, f0
-	b        lbl_80180CD0
-
-	lbl_80180CCC:
-	fmr      f31, f0
-
-	lbl_80180CD0:
-	mr       r3, r29
-	bl       getOlimarData__Q24Game4NaviFv
-	li       r4, 7
-	bl       hasItem__Q24Game10OlimarDataFi
-	clrlwi.  r0, r3, 0x18
-	beq      lbl_80180CF8
-	lwz      r3, naviMgr__4Game@sda21(r13)
-	lwz      r3, 0xc8(r3)
-	lfs      f1, 0xbb0(r3)
-	b        lbl_80180D04
-
-	lbl_80180CF8:
-	lwz      r3, naviMgr__4Game@sda21(r13)
-	lwz      r3, 0xc8(r3)
-	lfs      f1, 0x3b8(r3)
-
-	lbl_80180D04:
-	lfs      f0, lbl_80518C64@sda21(r2)
-	fcmpo    cr0, f31, f0
-	bge      lbl_80180D14
-	lfs      f1, lbl_80518BE0@sda21(r2)
-
-	lbl_80180D14:
-	lfs      f0, lbl_80518C68@sda21(r2)
-	fmuls    f29, f29, f1
-	fmuls    f30, f30, f1
-	fcmpo    cr0, f31, f0
-	fmuls    f25, f25, f1
-	bge      lbl_80180D54
-	lfs      f0, lbl_80518C04@sda21(r2)
-	fmuls    f5, f29, f0
-	fmuls    f4, f28, f0
-	fmuls    f3, f30, f0
-	fmuls    f2, f27, f0
-	fmuls    f1, f25, f0
-	fmuls    f0, f26, f0
-	fadds    f29, f5, f4
-	fadds    f30, f3, f2
-	fadds    f25, f1, f0
-
-	lbl_80180D54:
-	lfs      f0, lbl_80518C6C@sda21(r2)
-	fcmpo    cr0, f31, f0
-	ble      lbl_80180D84
-	mr       r3, r28
-	mr       r4, r29
-	lwz      r12, 0(r28)
-	li       r5, 0
-	li       r6, 0
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	b        lbl_80180D98
-
-	lbl_80180D84:
-	mr       r3, r29
-	bl       control__Q24Game4NaviFv
-	stfs     f29, 0x1e4(r29)
-	stfs     f30, 0x1e8(r29)
-	stfs     f25, 0x1ec(r29)
-
-	lbl_80180D98:
-	psq_l    f31, 264(r1), 0, qr0
-	lfd      f31, 0x100(r1)
-	psq_l    f30, 248(r1), 0, qr0
-	lfd      f30, 0xf0(r1)
-	psq_l    f29, 232(r1), 0, qr0
-	lfd      f29, 0xe0(r1)
-	psq_l    f28, 216(r1), 0, qr0
-	lfd      f28, 0xd0(r1)
-	psq_l    f27, 200(r1), 0, qr0
-	lfd      f27, 0xc0(r1)
-	psq_l    f26, 184(r1), 0, qr0
-	lfd      f26, 0xb0(r1)
-	psq_l    f25, 168(r1), 0, qr0
-	lfd      f25, 0xa0(r1)
-	lmw      r27, 0x8c(r1)
-	lwz      r0, 0x114(r1)
-	mtlr     r0
-	addi     r1, r1, 0x110
-	blr
-	*/
 }
 
 /**
@@ -2219,8 +1537,8 @@ void NaviFollowState::cleanup(Navi* navi) { }
  */
 NaviPunchState::NaviPunchState()
     : NaviState(NSID_Punch)
-    , _24(0)
-    , mNextStateID(0)
+    , mIsFollowing(false)
+    , mNextStateID(NSID_Walk)
 {
 }
 
@@ -2232,24 +1550,25 @@ void NaviPunchState::init(Navi* navi, StateArg* stateArg)
 {
 	NaviPunchArg* punchArg = static_cast<NaviPunchArg*>(stateArg);
 	if (punchArg) {
-		_24          = punchArg->_00;
-		mNextStateID = punchArg->_04;
+		mIsFollowing = punchArg->mIsFollowing;
+		mNextStateID = punchArg->mNextState;
 	} else {
-		_24          = 0;
-		mNextStateID = 0;
+		mIsFollowing = false;
+		mNextStateID = NSID_Walk;
 	}
 
 	navi->startMotion(IPikiAnims::PUNCH, IPikiAnims::PUNCH, navi, nullptr);
 	navi->mSoundObj->startSound(PSSE_PL_ORIMA_PUNCH_SWING, 0);
 	navi->enableMotionBlend();
-	_10     = 0;
-	mNavi   = navi;
-	mTarget = nullptr;
-	_1C     = 0;
-	_1E     = 0;
-	_1D     = 0;
-	_20     = 0;
-	_1F     = 0;
+
+	mIsPunchReady     = false;
+	mNavi             = navi;
+	mTarget           = nullptr;
+	mUnused1C         = 0;
+	mComboCounter     = 0;
+	mIsNextPunchReady = false;
+	mIdleCounter      = 0;
+	mIsTargetHit      = false;
 }
 
 // /**
@@ -2268,7 +1587,7 @@ void NaviPunchState::init(Navi* navi, StateArg* stateArg)
 void NaviPunchState::hitCallback(CollPart* collpart)
 {
 	if (playData->isDemoFlag(DEMO_Meet_Red_Pikmin) && collpart) {
-		bool isRocketFist = false;
+		bool isRocketFist = false; // is this the third WHABAM punch from a rocket fist captain
 		f32 damage        = 7.5f;
 		int animIdx;
 		if (mNavi->mAnimator.mSelfAnimator.mAnimInfo) {
@@ -2284,16 +1603,16 @@ void NaviPunchState::hitCallback(CollPart* collpart)
 
 		InteractAttack attack(mNavi, damage, collpart);
 		if (mTarget->stimulate(attack)) {
-			Vector3f targetColVec = collpart->mPosition;
-			CollPart* rHand       = mNavi->mCollTree->getCollPart('rhnd');
+			Vector3f fxPos  = collpart->mPosition;
+			CollPart* rHand = mNavi->mCollTree->getCollPart('rhnd');
 
-			Vector3f sep = targetColVec - rHand->mPosition;
-			sep.normalise();
+			fxPos = fxPos - rHand->mPosition;
+			fxPos.normalise();
 
-			sep *= 15.0f;
-			sep += rHand->mPosition;
+			fxPos *= 15.0f;
+			fxPos += rHand->mPosition;
 
-			efx::Arg fxArg(sep);
+			efx::Arg fxArg(fxPos);
 			efx::TOrimapunch fxPunch;
 			fxPunch.create(&fxArg);
 
@@ -2303,239 +1622,30 @@ void NaviPunchState::hitCallback(CollPart* collpart)
 				mNavi->mSoundObj->startSound(PSSE_PL_ORIMA_PUNCH_HIT, 0);
 			}
 
-			_1F = 1;
+			mIsTargetHit = true;
 
-			if (!_24) {
+			if (!mIsFollowing) {
 				Navi* otherNavi = naviMgr->getAt(GET_OTHER_NAVI(mNavi));
 				if (otherNavi && otherNavi->isAlive() && otherNavi->getStateID() == NSID_Follow) {
 					NaviFollowState* otherNaviState = static_cast<NaviFollowState*>(otherNavi->mCurrentState);
 					Creature* target                = mTarget;
-					if (otherNaviState->_14 == 1 || otherNaviState->_14 == 2) {
+
+					// if other navi is following or goofing off (not new follow or punching)
+					if (otherNaviState->mFollowState == NaviFollowState::FOLLOW_Normal
+					    || otherNaviState->mFollowState == NaviFollowState::FOLLOW_IdleGoof) {
+
+						// if our target is an enemy, make other navi punch the enemy too
 						if (target->isTeki()) {
-							otherNaviState->mRunEnemy = target;
-							otherNaviState->_14       = 3;
-							otherNaviState->_1E       = 0;
-							otherNaviState->_1C       = 0;
+							otherNaviState->mTargetEnemy      = target;
+							otherNaviState->mFollowState      = NaviFollowState::FOLLOW_PunchTarget;
+							otherNaviState->mPunchSeekCounter = 0;
+							otherNaviState->mIdleCounter      = 0;
 						}
 					}
 				}
 			}
 		}
 	}
-	/*
-	stwu     r1, -0x80(r1)
-	mflr     r0
-	stw      r0, 0x84(r1)
-	stfd     f31, 0x70(r1)
-	psq_st   f31, 120(r1), 0, qr0
-	stfd     f30, 0x60(r1)
-	psq_st   f30, 104(r1), 0, qr0
-	stfd     f29, 0x50(r1)
-	psq_st   f29, 88(r1), 0, qr0
-	stw      r31, 0x4c(r1)
-	stw      r30, 0x48(r1)
-	stw      r29, 0x44(r1)
-	mr       r30, r3
-	lwz      r3, playData__4Game@sda21(r13)
-	mr       r29, r4
-	li       r4, 0x23
-	bl       isDemoFlag__Q24Game8PlayDataFi
-	clrlwi.  r0, r3, 0x18
-	beq      lbl_801811C8
-	cmplwi   r29, 0
-	beq      lbl_801811C8
-	lwz      r6, 0x18(r30)
-	li       r31, 0
-	lfs      f1, lbl_80518C70@sda21(r2)
-	lwz      r3, 0x1b8(r6)
-	cmplwi   r3, 0
-	beq      lbl_80180F70
-	lha      r0, 0x20(r3)
-	b        lbl_80180F74
-
-lbl_80180F70:
-	li       r0, -1
-
-lbl_80180F74:
-	cmpwi    r0, 0x42
-	bne      lbl_80180F88
-	lfs      f0, lbl_80518C74@sda21(r2)
-	li       r31, 1
-	fmuls    f1, f1, f0
-
-lbl_80180F88:
-	lis      r4, __vt__Q24Game11Interaction@ha
-	lis      r3, __vt__Q24Game14InteractAttack@ha
-	addi     r5, r4, __vt__Q24Game11Interaction@l
-	stw      r6, 0x28(r1)
-	addi     r0, r3, __vt__Q24Game14InteractAttack@l
-	addi     r4, r1, 0x24
-	stw      r5, 0x24(r1)
-	stw      r0, 0x24(r1)
-	stfs     f1, 0x2c(r1)
-	stw      r29, 0x30(r1)
-	lwz      r3, 0x14(r30)
-	lwz      r12, 0(r3)
-	lwz      r12, 0x1a4(r12)
-	mtctr    r12
-	bctrl
-	clrlwi.  r0, r3, 0x18
-	beq      lbl_801811C8
-	lwz      r5, 0x18(r30)
-	lis      r3, 0x72686E64@ha
-	lfs      f31, 0x4c(r29)
-	addi     r4, r3, 0x72686E64@l
-	lfs      f30, 0x50(r29)
-	lfs      f29, 0x54(r29)
-	lwz      r3, 0x114(r5)
-	bl       getCollPart__8CollTreeFUl
-	lfs      f4, 0x50(r3)
-	lfs      f5, 0x54(r3)
-	fsubs    f7, f30, f4
-	lfs      f3, 0x4c(r3)
-	fsubs    f8, f29, f5
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	fsubs    f6, f31, f3
-	fmuls    f1, f7, f7
-	fmuls    f2, f8, f8
-	fmadds   f1, f6, f6, f1
-	fadds    f1, f2, f1
-	fcmpo    cr0, f1, f0
-	ble      lbl_80181030
-	ble      lbl_80181034
-	frsqrte  f0, f1
-	fmuls    f1, f0, f1
-	b        lbl_80181034
-
-lbl_80181030:
-	fmr      f1, f0
-
-lbl_80181034:
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	fcmpo    cr0, f1, f0
-	ble      lbl_80181054
-	lfs      f0, lbl_80518C48@sda21(r2)
-	fdivs    f0, f0, f1
-	fmuls    f6, f6, f0
-	fmuls    f7, f7, f0
-	fmuls    f8, f8, f0
-
-lbl_80181054:
-	lfs      f0, lbl_80518C54@sda21(r2)
-	lis      r3, __vt__Q23efx5TBase@ha
-	addi     r0, r3, __vt__Q23efx5TBase@l
-	lis      r4, __vt__Q23efx8TSimple1@ha
-	fmuls    f6, f6, f0
-	lis      r5, __vt__Q23efx3Arg@ha
-	fmuls    f7, f7, f0
-	lis      r3, __vt__Q23efx11TOrimapunch@ha
-	fmuls    f8, f8, f0
-	stw      r0, 8(r1)
-	fadds    f6, f6, f3
-	addi     r0, r4, __vt__Q23efx8TSimple1@l
-	fadds    f7, f7, f4
-	addi     r4, r5, __vt__Q23efx3Arg@l
-	fadds    f8, f8, f5
-	li       r6, 0x26d
-	li       r5, 0
-	stw      r0, 8(r1)
-	addi     r0, r3, __vt__Q23efx11TOrimapunch@l
-	addi     r3, r1, 8
-	stw      r4, 0x14(r1)
-	addi     r4, r1, 0x14
-	stfs     f6, 0x18(r1)
-	stfs     f7, 0x1c(r1)
-	stfs     f8, 0x20(r1)
-	sth      r6, 0xc(r1)
-	stw      r5, 0x10(r1)
-	stw      r0, 8(r1)
-	bl       create__Q23efx8TSimple1FPQ23efx3Arg
-	clrlwi.  r0, r31, 0x18
-	beq      lbl_801810F4
-	lwz      r3, 0x18(r30)
-	li       r4, 0x2828
-	li       r5, 0
-	lwz      r3, 0x26c(r3)
-	lwz      r12, 0x28(r3)
-	lwz      r12, 0x7c(r12)
-	mtctr    r12
-	bctrl
-	b        lbl_80181114
-
-lbl_801810F4:
-	lwz      r3, 0x18(r30)
-	li       r4, 0x801
-	li       r5, 0
-	lwz      r3, 0x26c(r3)
-	lwz      r12, 0x28(r3)
-	lwz      r12, 0x7c(r12)
-	mtctr    r12
-	bctrl
-
-lbl_80181114:
-	li       r0, 1
-	stb      r0, 0x1f(r30)
-	lbz      r0, 0x24(r30)
-	cmplwi   r0, 0
-	bne      lbl_801811C8
-	lwz      r3, naviMgr__4Game@sda21(r13)
-	lwz      r4, 0x18(r30)
-	lwz      r12, 0(r3)
-	lhz      r0, 0x2dc(r4)
-	lwz      r12, 0x24(r12)
-	subfic   r4, r0, 1
-	mtctr    r12
-	bctrl
-	or.      r31, r3, r3
-	beq      lbl_801811C8
-	lwz      r12, 0(r3)
-	lwz      r12, 0xa8(r12)
-	mtctr    r12
-	bctrl
-	clrlwi.  r0, r3, 0x18
-	beq      lbl_801811C8
-	mr       r3, r31
-	bl       getStateID__Q24Game4NaviFv
-	cmpwi    r3, 1
-	bne      lbl_801811C8
-	lwz      r31, 0x274(r31)
-	lwz      r30, 0x14(r30)
-	lbz      r0, 0x14(r31)
-	cmplwi   r0, 1
-	beq      lbl_80181194
-	cmplwi   r0, 2
-	bne      lbl_801811C8
-
-lbl_80181194:
-	mr       r3, r30
-	lwz      r12, 0(r30)
-	lwz      r12, 0x7c(r12)
-	mtctr    r12
-	bctrl
-	clrlwi.  r0, r3, 0x18
-	beq      lbl_801811C8
-	stw      r30, 0x18(r31)
-	li       r3, 3
-	li       r0, 0
-	stb      r3, 0x14(r31)
-	stb      r0, 0x1e(r31)
-	stb      r0, 0x1c(r31)
-
-lbl_801811C8:
-	psq_l    f31, 120(r1), 0, qr0
-	lfd      f31, 0x70(r1)
-	psq_l    f30, 104(r1), 0, qr0
-	lfd      f30, 0x60(r1)
-	psq_l    f29, 88(r1), 0, qr0
-	lfd      f29, 0x50(r1)
-	lwz      r31, 0x4c(r1)
-	lwz      r30, 0x48(r1)
-	lwz      r0, 0x84(r1)
-	lwz      r29, 0x44(r1)
-	mtlr     r0
-	addi     r1, r1, 0x80
-	blr
-	*/
 }
 
 /**
@@ -2546,68 +1656,75 @@ void NaviPunchState::onKeyEvent(Navi* navi, SysShape::KeyEvent const& event)
 {
 	switch (event.mType) {
 	case KEYEVENT_2:
-		_10 = 1;
+		mIsPunchReady = true;
 		f32 cosTheta, sinTheta;
-		f32 angle  = navi->getFaceDir();
-		f32 val1   = 15.0f;
-		f32 radius = 20.0f;
+		f32 angle       = navi->getFaceDir();
+		f32 punchDist   = 15.0f; // horizontal punch distance
+		f32 punchRadius = 20.0f;
 
 		if (event.mAnimIdx == IPikiAnims::PUNCH3) {
-			val1   = 25.0f;
-			radius = 35.0f;
+			punchDist   = 25.0f;
+			punchRadius = 35.0f;
 		}
 
-		cosTheta = (f32)cos(angle);
-		sinTheta = (f32)sin(angle);
-		Sys::Sphere sphere;
+		cosTheta = dolcosf(angle);
+		sinTheta = dolsinf(angle);
+		Sys::Sphere hitSphere;
 
 		Vector3f naviPos = navi->getPosition();
-		Vector3f offset(val1 * sinTheta, radius, val1 * cosTheta);
-		sphere.mRadius   = radius;
-		sphere.mPosition = offset + naviPos;
+		Vector3f hitBoxPos(punchDist * sinTheta, punchRadius, punchDist * cosTheta);
+		hitSphere.mRadius   = punchRadius;
+		hitSphere.mPosition = hitBoxPos + naviPos;
 
-		CellIteratorArg iterArg(sphere);
+		// find something to hit!
+		CellIteratorArg iterArg(hitSphere);
 		CellIterator iter(iterArg);
 
 		CI_LOOP(iter)
 		{
-			iter.dump();
+			iter.dump(); // debug
+
 			Creature* creature = static_cast<Creature*>(*iter);
 			if (!creature->isNavi() && creature->mCollTree && creature != navi && creature->isAlive()) {
+				// punchable!
 				mTarget = creature;
 
-				creature->getCreatureName(); // debug thing probably
-				creature->getCreatureID();
+				P2DEBUG("%s, %s", creature->getCreatureName(), creature->getCreatureID()); // debug thing probably
 
 				Delegate1<NaviPunchState, CollPart*> delegate(this, hitCallback);
-				creature->mCollTree->checkCollision(sphere, &delegate);
+				creature->mCollTree->checkCollision(hitSphere, &delegate);
 			}
 		}
 		break;
 
 	case KEYEVENT_END:
-		if (_1D) {
+		if (mIsNextPunchReady) {
 			if (playData->mOlimarData->hasItem(OlimarData::ODII_BruteKnuckles)) {
-				if (++_1E <= 1) {
+				// advance the combo counter!
+				if (++mComboCounter <= 1) {
+					// first or second punch
 					navi->startMotion(IPikiAnims::PUNCH2, IPikiAnims::PUNCH2, navi, nullptr);
 					navi->mSoundObj->startSound(PSSE_PL_ORIMA_PUNCH_SWING, 0);
+
 				} else {
+					// BIG THIRD PUNCH
 					navi->startMotion(IPikiAnims::PUNCH3, IPikiAnims::PUNCH3, navi, nullptr);
 					navi->mSoundObj->startSound(PSSE_PL_ORIMA_PUNCH_SWING, 0);
 				}
 
 				navi->enableMotionBlend();
-				_10     = 0;
-				mTarget = nullptr;
-				_1C     = 0;
-				_1D     = 0;
-				_1F     = 0;
+				mIsPunchReady     = false;
+				mTarget           = nullptr;
+				mUnused1C         = 0;
+				mIsNextPunchReady = false;
+				mIsTargetHit      = false;
+
 			} else {
-				_20 = 4;
+				mIdleCounter = 4; // 4 frames before we go back to walking
 				mNavi->startMotion(IPikiAnims::WAIT, IPikiAnims::WAIT, nullptr, nullptr);
 			}
 		} else {
-			_20 = 4;
+			mIdleCounter = 4; // 4 frames before we go back to walking
 			mNavi->startMotion(IPikiAnims::WAIT, IPikiAnims::WAIT, nullptr, nullptr);
 		}
 		break;
@@ -2620,22 +1737,30 @@ void NaviPunchState::onKeyEvent(Navi* navi, SysShape::KeyEvent const& event)
  */
 void NaviPunchState::exec(Navi* navi)
 {
-	if (_20) {
-		if (0 == --_20) {
+	if (mIdleCounter) {
+		if (--mIdleCounter == 0) {
+			// we've been idle too long, go back to regular state
 			transit(navi, mNextStateID, nullptr);
+
 		} else if (!navi->assertMotion(IPikiAnims::PUNCH) && !navi->assertMotion(IPikiAnims::PUNCH2)
 		           && !navi->assertMotion(IPikiAnims::PUNCH3)) {
+
+			// no valid punch animation is happening, go back to regular state
 			transit(navi, mNextStateID, nullptr);
 		}
-	} else {
-		if (_24 == 0 && navi->mController1 != nullptr && navi->mController1->isButtonDown(JUTGamePad::PRESS_A) && _1D == 0 && _1E < 2) {
-			_1D = 1;
-		}
-		navi->control();
-		navi->findNextThrowPiki();
-		if (!navi->assertMotion(IPikiAnims::PUNCH) && !navi->assertMotion(IPikiAnims::PUNCH2) && !navi->assertMotion(IPikiAnims::PUNCH3)) {
-			transit(navi, mNextStateID, nullptr);
-		}
+		return;
+	}
+
+	// ready another punch!
+	if (!mIsFollowing && navi->mController1 && navi->mController1->isButtonDown(JUTGamePad::PRESS_A) && !mIsNextPunchReady
+	    && mComboCounter < 2) {
+		mIsNextPunchReady = true;
+	}
+
+	navi->control();
+	navi->findNextThrowPiki();
+	if (!navi->assertMotion(IPikiAnims::PUNCH) && !navi->assertMotion(IPikiAnims::PUNCH2) && !navi->assertMotion(IPikiAnims::PUNCH3)) {
+		transit(navi, mNextStateID, nullptr);
 	}
 }
 
@@ -2850,10 +1975,10 @@ void NaviNukuState::exec(Navi* navi)
 		}
 		navi->mPluckingCounter = 0;
 	} else if (mIsFollower == 0) {
-		if (mDidPressA == 0 && navi->mController1->isButton(JUTGamePad::PRESS_A)) {
+		if (mDidPressA == 0 && navi->mController1->isButtonHeld(JUTGamePad::PRESS_A)) {
 			mDidPressA = 1;
 		}
-		if (mDidPressA != 0 && !navi->mController1->isButton(JUTGamePad::PRESS_A)) {
+		if (mDidPressA != 0 && !navi->mController1->isButtonHeld(JUTGamePad::PRESS_A)) {
 			mIsActive = 1;
 			navi->mPluckingCounter++;
 		}
@@ -3169,14 +2294,14 @@ void NaviNukuAdjustState::exec(Navi* navi)
 	sproutToNavi.length(); // unused
 
 	Vector3f targetToNavi    = mTargetPosition - navi->getPosition(); // f26, f27, f28
-	f32 targetToNaviDistance = targetToNavi.length();                 // f31
+	f32 targetToNaviDistance = targetToNavi.length2D();               // f31
 	f32 absoluteDeltaY       = absF(targetToNavi.y);
 
 	f32 normalisedDistance = targetToNavi.normalise(); // f30, why tho
 
 	f32 newFaceDir = mAngleToPiki;
 	f32 angle      = angDist(newFaceDir, navi->mFaceDir);
-	if (absF(angle) < (PI / 10) && targetToNaviDistance < 2.0f && absoluteDeltaY < 10.0f) {
+	if (absF(angle) < (PI / 10.0f) && targetToNaviDistance < 2.0f && absoluteDeltaY < 10.0f) {
 		navi->mFaceDir      = newFaceDir;
 		PikiMgr::mBirthMode = PikiMgr::PSM_Force;
 		Piki* piki          = pikiMgr->birth();
@@ -3211,7 +2336,7 @@ void NaviNukuAdjustState::exec(Navi* navi)
 		transit(navi, NSID_Nuku, &nukuArg);
 
 	} else {
-		f32 angleOffset = 2.0f * angle;
+		f32 angleOffset = 0.2f * angle;
 		navi->mFaceDir  = roundAng(navi->mFaceDir + angleOffset);
 
 		f32 speed = 100.0f;
@@ -3219,10 +2344,9 @@ void NaviNukuAdjustState::exec(Navi* navi)
 			speed = 0.5f / sys->mDeltaTime;
 		}
 
-		Vector3f vel          = targetToNavi * speed;
-		navi->mVelocity       = vel;
+		navi->mVelocity       = targetToNavi * speed;
 		navi->mTargetVelocity = Vector3f(0.0f);
-		navi->mTargetVelocity = vel;
+		navi->mTargetVelocity = targetToNavi * speed;
 	}
 
 	if (mWallHitCounter > 10) {
@@ -4626,17 +3750,17 @@ void NaviFlickState::bounceCallback(Navi* navi, Sys::Triangle*)
 void NaviKokeDamageState::init(Navi* navi, StateArg* stateArg)
 {
 	if (!stateArg) {
-		mDamage   = 0.0f;
-		mTimer    = 0.0f;
-		mCreature = nullptr;
-		_20       = 0;
+		mDamage            = 0.0f;
+		mTimer             = 0.0f;
+		mCreature          = nullptr;
+		mPlaySoundOnDamage = 0;
 	} else {
 		NaviKokeDamageInitArg* arg = static_cast<NaviKokeDamageInitArg*>(stateArg);
 
-		mDamage   = arg->mDamage;
-		mTimer    = arg->_08;
-		mCreature = arg->mCreature;
-		_20       = arg->_0C;
+		mDamage            = arg->mDamage;
+		mTimer             = arg->mTimer;
+		mCreature          = arg->mCreature;
+		mPlaySoundOnDamage = arg->mPlaySoundOnDamage;
 	}
 
 	navi->startMotion(IPikiAnims::JKOKE, IPikiAnims::JKOKE, navi, nullptr);
@@ -4696,7 +3820,7 @@ void NaviKokeDamageState::onKeyEvent(Navi* navi, SysShape::KeyEvent const& key)
 	if (key.mType == KEYEVENT_END) {
 		if (mState == 0) {
 			mState = 1;
-			navi->addDamage(mDamage, _20);
+			navi->addDamage(mDamage, mPlaySoundOnDamage);
 		} else if (mState == 2) {
 			if (static_cast<NaviFSM*>(mStateMachine)->mBackupStateID == -1) {
 				transit(navi, NSID_Walk, nullptr);
@@ -4714,7 +3838,7 @@ void NaviKokeDamageState::onKeyEvent(Navi* navi, SysShape::KeyEvent const& key)
 void NaviSaraiState::init(Navi* navi, StateArg* stateArg)
 {
 	navi->startMotion(IPikiAnims::FALL, IPikiAnims::FALL, nullptr, nullptr);
-	_10           = 0;
+	mInputFlags   = 0;
 	mEscapeInputs = 0;
 	navi->releasePikis();
 }
@@ -4725,10 +3849,11 @@ void NaviSaraiState::init(Navi* navi, StateArg* stateArg)
  */
 void NaviSaraiState::exec(Navi* navi)
 {
-	if ((_10 & 0x8000000) && mEscapeInputs) {
+	if ((mInputFlags & JUTGamePad::ANALOG_UP) && mEscapeInputs) {
 		mEscapeInputs--;
 	}
-	_10 <<= 1;
+
+	mInputFlags <<= 1;
 	if (!navi->isStickTo()) {
 		navi->endStick();
 		transit(navi, NSID_Walk, nullptr);
@@ -4736,7 +3861,7 @@ void NaviSaraiState::exec(Navi* navi)
 		if (navi->mController1
 		    && navi->mController1->getButtonDown()
 		           & (JUTGamePad::ANALOG_DOWN | JUTGamePad::ANALOG_UP | JUTGamePad::ANALOG_LEFT | JUTGamePad::ANALOG_RIGHT)) {
-			_10 |= 1;
+			mInputFlags |= 1;
 			mEscapeInputs++;
 		}
 	}
@@ -4825,31 +3950,31 @@ void NaviContainerState::init(Navi* navi, StateArg* stateArg)
 	if (mOnyon->mOnyonType == ONYON_TYPE_SHIP) {
 		og::Screen::DispMemberUfoGroup disp;
 
-		disp.mContena1.mOnyonID = White;
-		int max                 = playData->mPikiContainer.getColorSum(White) - mOnyon->mWhitesToWithdraw;
+		disp.mContena1.mDataContena.mOnyonID = White;
+		int max                              = playData->mPikiContainer.getColorSum(White) - mOnyon->mWhitesToWithdraw;
 		if (max < 0) {
 			max = 0;
 		}
-		disp.mContena1.mInOnion          = max;
-		disp.mContena1.mCurrInMap        = 128000;
-		disp.mContena1.mNewInPartyNum    = GameStat::formationPikis.getCount(navi->mNaviIndex, White);
-		disp.mContena1.mMaxPikiField     = 100;
-		disp.mContena1.mInParty2         = GameStat::formationPikis.getTotal(navi->mNaviIndex);
-		disp.mContena1.mOnMapMinusWild   = GameStat::getMapPikmins(AllPikminCalcs) - GameStat::getZikatuPikmins(AllPikminCalcs);
-		disp.mContena1.mMaxPikiMinusWild = 100 - GameStat::getZikatuPikmins(AllPikminCalcs);
+		disp.mContena1.mDataContena.mInOnionCount   = max;
+		disp.mContena1.mDataContena.mCurrField      = 128000;
+		disp.mContena1.mDataContena.mInSquadCount   = GameStat::formationPikis.getCount(navi->mNaviIndex, White);
+		disp.mContena1.mDataContena.mMaxPikiOnField = 100;
+		disp.mContena1.mDataContena.mInParty2       = GameStat::formationPikis.getTotal(navi->mNaviIndex);
+		disp.mContena1.mDataContena.mOnMapCount     = GameStat::getMapPikmins(AllPikminCalcs) - GameStat::getZikatuPikmins(AllPikminCalcs);
+		disp.mContena1.mDataContena.mMaxPikiCount   = 100 - GameStat::getZikatuPikmins(AllPikminCalcs);
 
-		disp.mContena2.mOnyonID = Purple;
-		max                     = playData->mPikiContainer.getColorSum(Purple) - mOnyon->mPurplesToWithdraw;
+		disp.mContena2.mDataContena.mOnyonID = Purple;
+		max                                  = playData->mPikiContainer.getColorSum(Purple) - mOnyon->mPurplesToWithdraw;
 		if (max < 0) {
 			max = 0;
 		}
-		disp.mContena2.mInOnion          = max;
-		disp.mContena2.mCurrInMap        = 128000;
-		disp.mContena2.mNewInPartyNum    = GameStat::formationPikis.getCount(navi->mNaviIndex, Purple);
-		disp.mContena2.mMaxPikiField     = 100;
-		disp.mContena2.mInParty2         = GameStat::formationPikis.getTotal(navi->mNaviIndex);
-		disp.mContena2.mOnMapMinusWild   = GameStat::getMapPikmins(AllPikminCalcs) - GameStat::getZikatuPikmins(AllPikminCalcs);
-		disp.mContena2.mMaxPikiMinusWild = 100 - GameStat::getZikatuPikmins(AllPikminCalcs);
+		disp.mContena2.mDataContena.mInOnionCount   = max;
+		disp.mContena2.mDataContena.mCurrField      = 128000;
+		disp.mContena2.mDataContena.mInSquadCount   = GameStat::formationPikis.getCount(navi->mNaviIndex, Purple);
+		disp.mContena2.mDataContena.mMaxPikiOnField = 100;
+		disp.mContena2.mDataContena.mInParty2       = GameStat::formationPikis.getTotal(navi->mNaviIndex);
+		disp.mContena2.mDataContena.mOnMapCount     = GameStat::getMapPikmins(AllPikminCalcs) - GameStat::getZikatuPikmins(AllPikminCalcs);
+		disp.mContena2.mDataContena.mMaxPikiCount   = 100 - GameStat::getZikatuPikmins(AllPikminCalcs);
 
 		disp.mHasWhite    = playData->hasContainer(White);
 		disp.mHasPurple   = playData->hasContainer(Purple);
@@ -4862,14 +3987,14 @@ void NaviContainerState::init(Navi* navi, StateArg* stateArg)
 	} else {
 		og::Screen::DispMemberContena disp;
 
-		disp.mOnyonID          = type;
-		disp.mInOnion          = playData->mPikiContainer.getColorSum(type);
-		disp.mCurrInMap        = 128000;
-		disp.mNewInPartyNum    = GameStat::formationPikis.getCount(navi->mNaviIndex, type);
-		disp.mMaxPikiField     = 100;
-		disp.mInParty2         = GameStat::formationPikis.getTotal(navi->mNaviIndex);
-		disp.mOnMapMinusWild   = GameStat::getMapPikmins(AllPikminCalcs) - GameStat::getZikatuPikmins(AllPikminCalcs);
-		disp.mMaxPikiMinusWild = 100 - GameStat::getZikatuPikmins(AllPikminCalcs);
+		disp.mDataContena.mOnyonID        = type;
+		disp.mDataContena.mInOnionCount   = playData->mPikiContainer.getColorSum(type);
+		disp.mDataContena.mCurrField      = 128000;
+		disp.mDataContena.mInSquadCount   = GameStat::formationPikis.getCount(navi->mNaviIndex, type);
+		disp.mDataContena.mMaxPikiOnField = 100;
+		disp.mDataContena.mInParty2       = GameStat::formationPikis.getTotal(navi->mNaviIndex);
+		disp.mDataContena.mOnMapCount     = GameStat::getMapPikmins(AllPikminCalcs) - GameStat::getZikatuPikmins(AllPikminCalcs);
+		disp.mDataContena.mMaxPikiCount   = 100 - GameStat::getZikatuPikmins(AllPikminCalcs);
 
 		mIsScreenOpen = Screen::gGame2DMgr->open_Contena(disp);
 	}
@@ -4914,16 +4039,16 @@ void NaviContainerState::exec(Navi* navi)
 			}
 			if (pikiNum < 0) {
 				if (isWhite) {
-					mShipPikiType = 4;
+					mShipPikiType = White;
 				} else {
-					mShipPikiType = 3;
+					mShipPikiType = Purple;
 				}
 				mOnyon->exitPikis(-pikiNum, mShipPikiType);
 			} else if (pikiNum > 0) {
 				if (isWhite) {
-					mShipPikiType = 4;
+					mShipPikiType = White;
 				} else {
-					mShipPikiType = 3;
+					mShipPikiType = Purple;
 				}
 				enterPikis(navi, pikiNum);
 			}
@@ -5055,10 +4180,10 @@ void NaviAbsorbState::exec(Navi* navi)
 void NaviAbsorbState::onKeyEvent(Navi* navi, SysShape::KeyEvent const& key)
 {
 	switch (key.mType) {
-	case 0:
+	case KEYEVENT_LOOP_START:
 		_10 = 1;
 		break;
-	case 1:
+	case KEYEVENT_LOOP_END:
 		P2ASSERTLINE(3956, mDrop->mObjectTypeID == OBJTYPE_Honey);
 		ItemHoney::Item* item = mDrop;
 		if (!mDrop->isAlive() || !item->isShrinking()) {
@@ -5295,16 +4420,19 @@ void NaviThrowWaitState::init(Navi* navi, StateArg* stateArg)
 	Iterator<Creature> iterator(navi->mCPlateMgr);
 	CI_LOOP(iterator)
 	{
-		Piki* piki       = static_cast<Piki*>(*iterator);
-		Vector3f naviPos = navi->getPosition();
-		Vector3f pikiPos = piki->getPosition();
-		f32 dist         = pikiPos.distance(naviPos); // why is there trig in this, WHY
-		if (dist > -0.1f) {
-			dist += 10.0f;
-		}
-		if (dist < minDist && piki->getStateID() == PIKISTATE_Walk && piki->isThrowable()) {
-			retPiki = piki;
-			minDist = dist;
+		Piki* piki = static_cast<Piki*>(*iterator);
+
+		Vector3f diff        = piki->getPosition() - navi->getPosition();
+		Vector3f naviFaceDir = getDirection(navi->mFaceDir);
+		f32 dist             = diff.length();
+		if (!(absF(diff.y) > 15.0f)) {
+			if (diff.dot(naviFaceDir) > -0.1f) {
+				dist += 10.0f;
+			}
+			if (dist < minDist && piki->getStateID() == PIKISTATE_Walk && piki->isThrowable()) {
+				retPiki = piki;
+				minDist = dist;
+			}
 		}
 	}
 
@@ -5331,16 +4459,12 @@ void NaviThrowWaitState::init(Navi* navi, StateArg* stateArg)
 		mHeldPiki->mFsm->transit(mHeldPiki, PIKISTATE_Hanged, 0);
 		mHasHeldPiki = true;
 	}
-	NaviParms* parms = static_cast<NaviParms*>(navi->mParms);
-	navi->mHoldPikiCharge
-	    = mHoldChargeLevel / 3.0f * (parms->mNaviParms.mMaxCallTime.mValue - parms->mNaviParms.mCircleDisappearTime.mValue)
-	    + parms->mNaviParms.mCircleDisappearTime.mValue;
-	parms = static_cast<NaviParms*>(navi->mParms);
-	navi->mHoldPikiCharge2
-	    = mHoldChargeLevel / 3.0f * (parms->mNaviParms.mMaxCallTime.mValue - parms->mNaviParms.mCircleDisappearTime.mValue)
-	    + parms->mNaviParms.mCircleDisappearTime.mValue;
-	mNextPikiTimeLimit = 3.0f;
-	mUnusedVal         = 0.1f;
+	navi->mHoldPikiCharge = mHoldChargeLevel / 3.0f * (CG_NAVIPARMS(navi).mThrowDistanceMax() - CG_NAVIPARMS(navi).mThrowDistanceMin())
+	                      + CG_NAVIPARMS(navi).mThrowDistanceMin();
+	navi->mHoldPikiCharge2 = mHoldChargeLevel / 3.0f * (CG_NAVIPARMS(navi).mThrowHeightMax() - CG_NAVIPARMS(navi).mThrowHeightMin())
+	                       + CG_NAVIPARMS(navi).mThrowHeightMin();
+	mNextPikiTimeLimit     = 3.0f;
+	mInitialSortDelayTimer = 0.1f;
 	navi->setDoAnimCallback(mDelegate);
 	/*
 	stwu     r1, -0xb0(r1)
@@ -5739,9 +4863,9 @@ lbl_80186148:
 void NaviThrowWaitState::onKeyEvent(SysShape::KeyEvent const& key)
 {
 	switch (key.mType) {
-	case 2:
+	case KEYEVENT_2:
 		break;
-	case 1:
+	case KEYEVENT_LOOP_END:
 		if (mHoldChargeLevel < 3) {
 			mHoldChargeLevel++;
 		}
@@ -5789,48 +4913,196 @@ void NaviThrowWaitState::exec(Navi* navi)
 	navi->control();
 
 	if (!mHeldPiki) {
-		if (!mNextPiki) {
+		if (mNextPiki) {
+			mNextPikiTimeLimit -= sys->mDeltaTime;
+			if (mNextPikiTimeLimit < 0.0f) {
+				transit(navi, NSID_Walk, nullptr);
+				return;
+			}
+
+			if (navi->mController1->getButtonDown() & Controller::PRESS_B) {
+				transit(navi, NSID_Walk, nullptr);
+				return;
+			}
+			CollPart* part   = navi->mCollTree->getCollPart('rhnd');
+			Vector3f handPos = part->mPosition;
+			Vector3f pikiPos = mNextPiki->getPosition();
+			f32 dist         = handPos.distance(pikiPos);
+			if (!(dist <= 32.5f))
+				return;
+
+			navi->mAnimSpeed = 30.0f;
+			navi->startMotion(IPikiAnims::THROWWWAIT, IPikiAnims::THROWWWAIT, this, nullptr);
+			navi->enableMotionBlend();
+			mHeldPiki = mNextPiki;
+			mNextPiki = nullptr;
+			rumbleMgr->startRumble(RUMBLETYPE_Nudge, mNavi->mNaviIndex);
+			mHeldPiki->mFsm->transit(mHeldPiki, PIKISTATE_Hanged, nullptr);
+			mHasHeldPiki = true;
+		} else {
+			transit(navi, NSID_Punch, nullptr);
 			return;
 		}
-		mNextPikiTimeLimit -= sys->mDeltaTime;
-		if (mNextPikiTimeLimit < 0.0f) {
+	}
+
+	navi->mNextThrowPiki = mHeldPiki;
+
+	f32 min               = CG_NAVIPARMS(navi).mThrowDistanceMin();
+	f32 max               = CG_NAVIPARMS(navi).mThrowDistanceMax();
+	navi->mHoldPikiCharge = mHoldChargeLevel / 3.0f * (max - min) + min;
+
+	max                    = CG_NAVIPARMS(navi).mThrowHeightMax();
+	min                    = CG_NAVIPARMS(navi).mThrowHeightMin();
+	navi->mHoldPikiCharge2 = mHoldChargeLevel / 3.0f * (max - min) + min;
+
+	if (mHeldPiki && mHasHeldPiki) {
+		int stateID = mHeldPiki->getStateID();
+		if (stateID != PIKISTATE_Hanged && stateID != PIKISTATE_GoHang) {
 			transit(navi, NSID_Walk, nullptr);
 			return;
 		}
-		if (navi->mController1->getButtonDown() & Controller::PRESS_B) {
-			transit(navi, NSID_Walk, nullptr);
+	}
+
+	if (navi->mController1->getButtonDown() & Controller::PRESS_DPAD_RIGHT) {
+		mCurrHappa    = -1;
+		int currColor = mHeldPiki->getKind();
+		int pikisNext[(PikiColorCount - 1)];
+		for (int i = 0; i < (PikiColorCount - 1); i++) {
+			pikisNext[i] = ((currColor + i + 1) % PikiColorCount);
+		}
+
+		Piki* newPiki = nullptr;
+		for (int i = 0; i < (PikiColorCount - 1); i++) {
+			Piki* p = findNearestColorPiki(navi, pikisNext[i]);
+			if (p) {
+				newPiki = p;
+				break;
+			}
+		}
+
+		if (newPiki) {
+			Piki* held = mHeldPiki;
+			if (held->mNavi) {
+				if (currColor == Bulbmin) {
+					held->mNavi->mSoundObj->stopSound(PSSE_PK_HAPPA_THROW_WAIT, 0);
+				} else {
+					held->mNavi->mSoundObj->stopSound(PSSE_PK_VC_THROW_WAIT, 0);
+				}
+			}
+			held->mFsm->transit(held, PIKISTATE_Walk, nullptr);
+			mHeldPiki = newPiki;
+			newPiki->mFsm->transit(newPiki, PIKISTATE_Hanged, nullptr);
+			sortPikis(navi);
+			PSSystem::spSysIF->playSystemSe(PSSE_SY_THROW_PIKI_CHANGE, 0);
+			rumbleMgr->startRumble(RUMBLETYPE_Nudge, navi->mNaviIndex);
 			return;
 		}
-		CollPart* part   = navi->mCollTree->getCollPart('rhnd');
-		Vector3f handPos = part->mPosition;
-		Vector3f pikiPos = mNextPiki->getPosition();
-		f32 dist         = pikiPos.distance(handPos);
-		if (!(dist <= 32.5f)) {
+
+	} else if (navi->mController1->getButtonDown() & Controller::PRESS_DPAD_LEFT) {
+		mCurrHappa    = -1;
+		int currColor = mHeldPiki->getKind();
+		int pikisNext[(PikiColorCount - 1)];
+		for (int i = 0; i < (PikiColorCount - 1); i++) {
+			pikisNext[i] = ((currColor + ((PikiColorCount - 2) - i) + 1) % PikiColorCount);
+		}
+
+		Piki* newPiki = nullptr;
+		for (int i = 0; i < (PikiColorCount - 1); i++) {
+			Piki* p = findNearestColorPiki(navi, pikisNext[i]);
+			if (p) {
+				newPiki = p;
+				break;
+			}
+		}
+		if (newPiki) {
+			Piki* held = mHeldPiki;
+			if (held->mNavi) {
+				if (currColor == Bulbmin) {
+					held->mNavi->mSoundObj->stopSound(PSSE_PK_HAPPA_THROW_WAIT, 0);
+				} else {
+					held->mNavi->mSoundObj->stopSound(PSSE_PK_VC_THROW_WAIT, 0);
+				}
+			}
+			held->mFsm->transit(held, PIKISTATE_Walk, nullptr);
+			mHeldPiki = newPiki;
+			newPiki->mFsm->transit(newPiki, PIKISTATE_Hanged, nullptr);
+			sortPikis(navi);
+			PSSystem::spSysIF->playSystemSe(PSSE_SY_THROW_PIKI_CHANGE, 0);
+			rumbleMgr->startRumble(RUMBLETYPE_Nudge, navi->mNaviIndex);
 			return;
 		}
-		navi->mAnimSpeed = 30.0f;
-		navi->startMotion(IPikiAnims::THROWWWAIT, IPikiAnims::THROWWWAIT, this, nullptr);
-		navi->enableMotionBlend();
-		mHeldPiki = mNextPiki;
-		mNextPiki = nullptr;
-		rumbleMgr->startRumble(RUMBLETYPE_Nudge, mNavi->mNaviIndex);
-		mHeldPiki->mFsm->transit(mHeldPiki, PIKISTATE_Hanged, 0);
-		mHasHeldPiki = true;
-	} else {
-		transit(navi, NSID_Punch, nullptr);
+
+	} else if (navi->mController1->getButtonDown() & Controller::PRESS_DPAD_UP
+	           || navi->mController1->getButtonDown() & Controller::PRESS_DPAD_DOWN) {
+		bool isButton = navi->mController1->isButtonDown(Controller::PRESS_DPAD_DOWN);
+		int currColor = mHeldPiki->mPikiKind;
+		int currHappa = mHeldPiki->mHappaKind;
+		Piki* newPiki;
+		for (int i = 0; i < MaxHappaStage; i++) {
+			if (isButton) {
+				mCurrHappa = (mCurrHappa + (PikiGrowthStageCount - 1)) % PikiGrowthStageCount; // leaf->flower, flower->bud, bud->leaf
+			} else {
+				mCurrHappa = (mCurrHappa + 1) % PikiGrowthStageCount; // leaf->bud, bud->flower, flower->leaf
+			}
+			newPiki = findNearestColorPiki(navi, currColor);
+			if (newPiki) {
+				if (newPiki->getHappa() != currHappa) {
+					break;
+				}
+			}
+			newPiki = nullptr;
+		}
+		if (newPiki) {
+			Piki* held = mHeldPiki;
+			if (held->mNavi) {
+				if (currColor == Bulbmin) {
+					held->mNavi->mSoundObj->stopSound(PSSE_PK_HAPPA_THROW_WAIT, 0);
+				} else {
+					held->mNavi->mSoundObj->stopSound(PSSE_PK_VC_THROW_WAIT, 0);
+				}
+			}
+
+			held->mFsm->transit(held, PIKISTATE_Walk, nullptr);
+			mHeldPiki = newPiki;
+			newPiki->mFsm->transit(newPiki, PIKISTATE_Hanged, nullptr);
+			sortPikis(navi);
+			PSSystem::spSysIF->playSystemSe(PSSE_SY_THROW_PIKI_CHANGE, 0);
+			rumbleMgr->startRumble(RUMBLETYPE_Nudge, navi->mNaviIndex);
+			return;
+		}
+	}
+
+	if (!(navi->mController1->getButton() & Controller::PRESS_A)) {
+		sortPikis(navi);
+		navi->mHoldPikiTimer = mHoldChargeLevel / 3.0f * CG_NAVIPARMS(navi).mTimeLimitForThrowing();
+		NaviThrowInitArg arg(mHeldPiki);
+		transit(navi, NSID_Throw, &arg);
 		return;
 	}
 
-	navi->mNextThrowPiki = mNextPiki;
-	NaviParms* parms     = static_cast<NaviParms*>(navi->mParms);
+	navi->mHoldPikiTimer += sys->mDeltaTime;
 
-	navi->mHoldPikiCharge
-	    = mHoldChargeLevel / 3.0f * (parms->mNaviParms.mMaxCallTime.mValue - parms->mNaviParms.mCircleDisappearTime.mValue)
-	    + parms->mNaviParms.mCircleDisappearTime.mValue;
-	parms = static_cast<NaviParms*>(navi->mParms);
-	navi->mHoldPikiCharge2
-	    = mHoldChargeLevel / 3.0f * (parms->mNaviParms.mMaxCallTime.mValue - parms->mNaviParms.mCircleDisappearTime.mValue)
-	    + parms->mNaviParms.mCircleDisappearTime.mValue;
+	if (navi->mHoldPikiTimer > CG_NAVIPARMS(navi).mTimeLimitForThrowing()) {
+		navi->mHoldPikiTimer = CG_NAVIPARMS(navi).mTimeLimitForThrowing();
+	}
+	if (mInitialSortDelayTimer > 0.0f) {
+		mInitialSortDelayTimer -= sys->mDeltaTime;
+		if (mInitialSortDelayTimer <= 0.0f) {
+			sortPikis(navi);
+		}
+		return;
+	}
+
+	if (navi->mCPlateMgr->mActiveGroupSize > 0) {
+		Vector3f slotPos = navi->mCPlateMgr->mSlots->mPosition;
+		Vector3f naviPos = navi->getPosition();
+		if (slotPos.distance(naviPos) > 30.0f) {
+			Vector3f naviPos = navi->getPosition();
+			Vector3f naviVel = navi->getVelocity();
+			navi->mCPlateMgr->setPos(naviPos, navi->mFaceDir + PI, naviVel, 1.0f);
+			sortPikis(navi);
+		}
+	}
 
 	/*
 	stwu     r1, -0xf0(r1)
@@ -6693,7 +5965,7 @@ void NaviThrowState::onKeyEvent(SysShape::KeyEvent const& key)
 		if (!mPiki->isThrowable()) {
 			mHasThrown = true;
 		} else {
-			Vector3f pos = mNavi->mWhistle->mPosition;
+			Vector3f pos = mNavi->mWhistle->getPosition();
 			mNavi->throwPiki(mPiki, pos);
 			mPiki->mFsm->transit(mPiki, PIKISTATE_Flying, nullptr);
 			mHasThrown = true;
@@ -6703,69 +5975,6 @@ void NaviThrowState::onKeyEvent(SysShape::KeyEvent const& key)
 		transit(mNavi, NSID_Walk, nullptr);
 		break;
 	}
-	/*
-	stwu     r1, -0x20(r1)
-	mflr     r0
-	stw      r0, 0x24(r1)
-	lwz      r0, 0x1c(r4)
-	stw      r31, 0x1c(r1)
-	mr       r31, r3
-	cmpwi    r0, 0x3e8
-	beq      lbl_80187514
-	bge      lbl_80187530
-	cmpwi    r0, 2
-	beq      lbl_801874A0
-	b        lbl_80187530
-
-lbl_801874A0:
-	lwz      r3, 0x18(r31)
-	bl       isThrowable__Q24Game4PikiFv
-	clrlwi.  r0, r3, 0x18
-	bne      lbl_801874BC
-	li       r0, 1
-	stb      r0, 0x14(r31)
-	b        lbl_80187530
-
-lbl_801874BC:
-	lwz      r3, 0x1c(r31)
-	addi     r5, r1, 8
-	lwz      r4, 0x28c(r3)
-	lfs      f1, 0x10(r4)
-	lfs      f2, 0x14(r4)
-	lfs      f0, 0xc(r4)
-	stfs     f0, 8(r1)
-	stfs     f1, 0xc(r1)
-	stfs     f2, 0x10(r1)
-	lwz      r4, 0x18(r31)
-	bl       "throwPiki__Q24Game4NaviFPQ24Game4PikiR10Vector3<f>"
-	lwz      r4, 0x18(r31)
-	li       r5, 6
-	li       r6, 0
-	lwz      r3, 0x28c(r4)
-	lwz      r12, 0(r3)
-	lwz      r12, 0x14(r12)
-	mtctr    r12
-	bctrl
-	li       r0, 1
-	stb      r0, 0x14(r31)
-	b        lbl_80187530
-
-lbl_80187514:
-	lwz      r12, 0(r3)
-	li       r5, 0
-	lwz      r4, 0x1c(r31)
-	li       r6, 0
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-
-lbl_80187530:
-	lwz      r0, 0x24(r1)
-	lwz      r31, 0x1c(r1)
-	mtlr     r0
-	addi     r1, r1, 0x20
-	blr
-	*/
 }
 
 /**
@@ -6912,12 +6121,22 @@ void NaviPelletState::onKeyEvent(Navi* navi, SysShape::KeyEvent const& key)
 					navi->mSoundObj->startSound(PSSE_PL_WAKEUP_LUGI, 0);
 				}
 			}
-			if (mState == 0) {
+			switch (mState) {
+			case 0:
 				mState = 1;
+				break;
+			default:
+				break;
 			}
 		}
-		if (key.mType == KEYEVENT_END && mState == 2) {
-			mState = 3;
+		if (key.mType == KEYEVENT_END) {
+			switch (mState) {
+			case 2:
+				mState = 3;
+				break;
+			default:
+				break;
+			}
 		}
 	} else {
 		if (key.mType == KEYEVENT_END) {
@@ -6931,103 +6150,6 @@ void NaviPelletState::onKeyEvent(Navi* navi, SysShape::KeyEvent const& key)
 			}
 		}
 	}
-	/*
-	stwu     r1, -0x10(r1)
-	mflr     r0
-	stw      r0, 0x14(r1)
-	stw      r31, 0xc(r1)
-	mr       r31, r5
-	stw      r30, 8(r1)
-	mr       r30, r3
-	lbz      r0, 0x10(r3)
-	cmplwi   r0, 0
-	beq      lbl_80187CBC
-	lwz      r0, 0x1c(r31)
-	cmplwi   r0, 1
-	bne      lbl_80187C94
-	lbz      r0, 0x1c4(r4)
-	rlwinm.  r0, r0, 0, 0x1e, 0x1e
-	beq      lbl_80187C7C
-	lwz      r3, playData__4Game@sda21(r13)
-	lbz      r0, 0x2f(r3)
-	clrlwi.  r0, r0, 0x1f
-	beq      lbl_80187C60
-	lwz      r3, 0x26c(r4)
-	li       r4, 0x89e
-	li       r5, 0
-	lwz      r12, 0x28(r3)
-	lwz      r12, 0x7c(r12)
-	mtctr    r12
-	bctrl
-	b        lbl_80187C7C
-
-lbl_80187C60:
-	lwz      r3, 0x26c(r4)
-	li       r4, 0x89a
-	li       r5, 0
-	lwz      r12, 0x28(r3)
-	lwz      r12, 0x7c(r12)
-	mtctr    r12
-	bctrl
-
-lbl_80187C7C:
-	lwz      r0, 0x14(r30)
-	cmpwi    r0, 0
-	beq      lbl_80187C8C
-	b        lbl_80187C94
-
-lbl_80187C8C:
-	li       r0, 1
-	stw      r0, 0x14(r30)
-
-lbl_80187C94:
-	lwz      r0, 0x1c(r31)
-	cmplwi   r0, 0x3e8
-	bne      lbl_80187D04
-	lwz      r0, 0x14(r30)
-	cmpwi    r0, 2
-	beq      lbl_80187CB0
-	b        lbl_80187D04
-
-lbl_80187CB0:
-	li       r0, 3
-	stw      r0, 0x14(r30)
-	b        lbl_80187D04
-
-lbl_80187CBC:
-	lwz      r0, 0x1c(r31)
-	cmplwi   r0, 0x3e8
-	bne      lbl_80187D04
-	lwz      r0, 0x14(r30)
-	cmpwi    r0, 1
-	beq      lbl_80187D04
-	bge      lbl_80187CE4
-	cmpwi    r0, 0
-	bge      lbl_80187CF0
-	b        lbl_80187D04
-
-lbl_80187CE4:
-	cmpwi    r0, 3
-	bge      lbl_80187D04
-	b        lbl_80187CFC
-
-lbl_80187CF0:
-	li       r0, 1
-	stw      r0, 0x14(r30)
-	b        lbl_80187D04
-
-lbl_80187CFC:
-	li       r0, 3
-	stw      r0, 0x14(r30)
-
-lbl_80187D04:
-	lwz      r0, 0x14(r1)
-	lwz      r31, 0xc(r1)
-	lwz      r30, 8(r1)
-	mtlr     r0
-	addi     r1, r1, 0x10
-	blr
-	*/
 }
 
 /**
@@ -7113,14 +6235,15 @@ void NaviDemo_UfoState::initSuck(Navi* navi)
 	Onyon* ship   = ItemOnyon::mgr->mUfo;
 	Vector3f diff = ship->getSuckPos() - navi->getPosition();
 	f32 dist      = diff.length();
+	_18           = dist;
 
-	_18               = dist;
 	_14               = 0.0f;
 	navi->mVelocity.y = 0.0f;
-	_1C               = 1.0f;
-	_24               = navi->getPosition();
-	_20               = 0.0f;
-	_30               = 0.0f;
+
+	_1C = 1.0f;
+	_24 = navi->getPosition();
+	_20 = 0.0f;
+	_30 = 0.0f;
 	/*
 	stwu     r1, -0x40(r1)
 	mflr     r0
@@ -7407,7 +6530,9 @@ bool NaviDemo_HoleInState::execHesitate(Navi* navi)
 		Vector3f diff    = holePos - navi->getPosition();
 		diff.normalise();
 
-		Vector3f velocity(diff.x * 2.0f, 240.0f, diff.z * 2.0f);
+		Vector3f velocity(diff.x, 240.0f, diff.z);
+		velocity.x *= 2.0f;
+		velocity.z *= 2.0f;
 		navi->mVelocity       = velocity;
 		navi->mTargetVelocity = velocity;
 		navi->setMapCollision(false);
@@ -7546,8 +6671,8 @@ void NaviPressedState::init(Navi* navi, StateArg* stateArg)
 	navi->mScale = Vector3f(1.5f, 0.01f, 1.5f);
 	mTimer       = 2.0f;
 	navi->setUpdateTrMatrix(false);
-	Vector3f rot(0.0f, navi->mFaceDir, -1.5707964f);
-	rot.x        = -1.5707964f;
+	Vector3f rot(-HALF_PI, navi->mFaceDir, 0.0f);
+	rot.x        = 0.0f;
 	Vector3f pos = navi->getPosition();
 	pos.y += 2.0f;
 
@@ -7572,7 +6697,7 @@ void NaviPressedState::exec(Navi* navi)
 		return;
 	}
 
-	Vector3f rot(-1.5707964f, navi->mFaceDir, 0.0f);
+	Vector3f rot(-HALF_PI, navi->mFaceDir, 0.0f);
 	Vector3f pos = navi->getPosition();
 	rot.x        = 0.0f;
 
@@ -7587,15 +6712,16 @@ void NaviPressedState::exec(Navi* navi)
 		}
 		break;
 	case 1:
-		f32 y  = 1.0f - mTimer / 0.7f;
-		f32 xz = mTimer * TAU * 4.0f;
-		y      = y + (1.0f - y);
-		y *= 0.5f * sinf(xz);
+		f32 y      = 1.0f - mTimer / 0.7f;
+		f32 xz     = mTimer * TAU * 4.0f;
+		f32 sinVal = (0.5f * (1.0f - y)) * sinf(xz);
+		y += sinVal;
 		if (y < 0.0f) {
 			y = 0.0f;
 		}
-		xz           = y * mScaleBackup.x + (1.0f - y) * 1.5f;
-		navi->mScale = Vector3f(xz, y * mScaleBackup.y + (1.0f - y) * 0.01f, xz);
+
+		Vector3f otherVec(1.5f * (1.0f - y), 0.01f * (1.0f - y), 1.5f * (1.0f - y));
+		navi->mScale = Vector3f(y * mScaleBackup.x + otherVec.x, y * mScaleBackup.y + otherVec.y, y * mScaleBackup.x + otherVec.z);
 		pos.y += 2.0f;
 		navi->mBaseTrMatrix.makeSRT(navi->mScale, rot, pos);
 		if (mTimer <= 0.0f) {
@@ -7606,180 +6732,6 @@ void NaviPressedState::exec(Navi* navi)
 
 	navi->mVelocity       = 0.0f;
 	navi->mTargetVelocity = 0.0f;
-	/*
-	stwu     r1, -0x50(r1)
-	mflr     r0
-	stw      r0, 0x54(r1)
-	stw      r31, 0x4c(r1)
-	mr       r31, r4
-	stw      r30, 0x48(r1)
-	mr       r30, r3
-	lwz      r5, moviePlayer__4Game@sda21(r13)
-	lwz      r0, 0x1f0(r5)
-	clrlwi.  r0, r0, 0x1f
-	beq      lbl_80188D6C
-	lwz      r12, 0(r3)
-	li       r5, 0
-	li       r6, 0
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-	b        lbl_80188F7C
-
-lbl_80188D6C:
-	lfs      f2, 0x1fc(r31)
-	addi     r3, r1, 8
-	lfs      f1, lbl_80518CF4@sda21(r2)
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	stfs     f1, 0x20(r1)
-	stfs     f2, 0x24(r1)
-	stfs     f0, 0x28(r1)
-	lwz      r12, 0(r4)
-	lwz      r12, 8(r12)
-	mtctr    r12
-	bctrl
-	lfs      f2, 8(r1)
-	lfs      f1, 0xc(r1)
-	lfs      f0, 0x10(r1)
-	lfs      f5, lbl_80518BE0@sda21(r2)
-	stfs     f2, 0x14(r1)
-	lwz      r3, sys@sda21(r13)
-	stfs     f1, 0x18(r1)
-	stfs     f0, 0x1c(r1)
-	stfs     f5, 0x20(r1)
-	lfs      f1, 0x10(r30)
-	lfs      f0, 0x54(r3)
-	fsubs    f0, f1, f0
-	stfs     f0, 0x10(r30)
-	lwz      r0, 0x20(r30)
-	cmpwi    r0, 1
-	beq      lbl_80188E34
-	bge      lbl_80188F60
-	cmpwi    r0, 0
-	bge      lbl_80188DE8
-	b        lbl_80188F60
-
-lbl_80188DE8:
-	lfs      f1, 0x18(r1)
-	addi     r3, r31, 0x138
-	lfs      f0, lbl_80518C3C@sda21(r2)
-	addi     r4, r31, 0x168
-	addi     r5, r1, 0x20
-	addi     r6, r1, 0x14
-	fadds    f0, f1, f0
-	stfs     f0, 0x18(r1)
-	bl       "makeSRT__7MatrixfFR10Vector3<f>R10Vector3<f>R10Vector3<f>"
-	lfs      f1, 0x10(r30)
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	fcmpo    cr0, f1, f0
-	cror     2, 0, 2
-	bne      lbl_80188F60
-	li       r0, 1
-	lfs      f0, lbl_80518CF8@sda21(r2)
-	stw      r0, 0x20(r30)
-	stfs     f0, 0x10(r30)
-	b        lbl_80188F60
-
-lbl_80188E34:
-	lfs      f6, 0x10(r30)
-	lfs      f1, lbl_80518CF8@sda21(r2)
-	lfs      f0, lbl_80518CFC@sda21(r2)
-	fdivs    f2, f6, f1
-	lfs      f4, lbl_80518C48@sda21(r2)
-	lfs      f3, lbl_80518C98@sda21(r2)
-	lfs      f1, lbl_80518C04@sda21(r2)
-	fsubs    f7, f4, f2
-	fmuls    f2, f0, f6
-	fsubs    f0, f4, f7
-	fmuls    f2, f3, f2
-	fmuls    f1, f1, f0
-	fcmpo    cr0, f2, f5
-	bge      lbl_80188E98
-	lfs      f0, lbl_80518BEC@sda21(r2)
-	lis      r3, sincosTable___5JMath@ha
-	addi     r3, r3, sincosTable___5JMath@l
-	fmuls    f0, f2, f0
-	fctiwz   f0, f0
-	stfd     f0, 0x30(r1)
-	lwz      r0, 0x34(r1)
-	rlwinm   r0, r0, 3, 0x12, 0x1c
-	lfsx     f0, r3, r0
-	fneg     f0, f0
-	b        lbl_80188EBC
-
-lbl_80188E98:
-	lfs      f0, lbl_80518BE8@sda21(r2)
-	lis      r3, sincosTable___5JMath@ha
-	addi     r3, r3, sincosTable___5JMath@l
-	fmuls    f0, f2, f0
-	fctiwz   f0, f0
-	stfd     f0, 0x38(r1)
-	lwz      r0, 0x3c(r1)
-	rlwinm   r0, r0, 3, 0x12, 0x1c
-	lfsx     f0, r3, r0
-
-lbl_80188EBC:
-	fmuls    f1, f1, f0
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	fadds    f7, f7, f1
-	fcmpo    cr0, f7, f0
-	bge      lbl_80188ED4
-	fmr      f7, f0
-
-lbl_80188ED4:
-	lfs      f0, lbl_80518C48@sda21(r2)
-	addi     r3, r31, 0x138
-	lfs      f3, lbl_80518CD4@sda21(r2)
-	addi     r4, r31, 0x168
-	fsubs    f5, f0, f7
-	lfs      f1, lbl_80518CF0@sda21(r2)
-	lfs      f4, 0x14(r30)
-	addi     r5, r1, 0x20
-	lfs      f2, 0x18(r30)
-	addi     r6, r1, 0x14
-	fmuls    f3, f3, f5
-	lfs      f0, lbl_80518C3C@sda21(r2)
-	fmuls    f1, f1, f5
-	fmadds   f3, f7, f4, f3
-	fmadds   f1, f7, f2, f1
-	stfs     f3, 0x168(r31)
-	stfs     f1, 0x16c(r31)
-	stfs     f3, 0x170(r31)
-	lfs      f1, 0x18(r1)
-	fadds    f0, f1, f0
-	stfs     f0, 0x18(r1)
-	bl       "makeSRT__7MatrixfFR10Vector3<f>R10Vector3<f>R10Vector3<f>"
-	lfs      f1, 0x10(r30)
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	fcmpo    cr0, f1, f0
-	cror     2, 0, 2
-	bne      lbl_80188F60
-	mr       r3, r30
-	mr       r4, r31
-	lwz      r12, 0(r30)
-	li       r5, 0
-	li       r6, 0
-	lwz      r12, 0x1c(r12)
-	mtctr    r12
-	bctrl
-
-lbl_80188F60:
-	lfs      f0, lbl_80518BE0@sda21(r2)
-	stfs     f0, 0x200(r31)
-	stfs     f0, 0x204(r31)
-	stfs     f0, 0x208(r31)
-	stfs     f0, 0x1e4(r31)
-	stfs     f0, 0x1e8(r31)
-	stfs     f0, 0x1ec(r31)
-
-lbl_80188F7C:
-	lwz      r0, 0x54(r1)
-	lwz      r31, 0x4c(r1)
-	lwz      r30, 0x48(r1)
-	mtlr     r0
-	addi     r1, r1, 0x50
-	blr
-	*/
 }
 
 /**

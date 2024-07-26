@@ -252,9 +252,9 @@ config.libs = [
             Object(Matching, "JSystem/JStudio/jstudio-data.cpp"),
             Object(NonMatching, "JSystem/JStudio/jstudio-object.cpp"),
             Object(Matching, "JSystem/JStudio/object-id.cpp"),
-            Object(NonMatching, "JSystem/JStudio/stb.cpp"),
+            Object(Matching, "JSystem/JStudio/stb.cpp"),
             Object(Matching, "JSystem/JStudio/stb-data.cpp"),
-            Object(NonMatching, "JSystem/JStudio/jstudio-math.cpp"),
+            Object(Matching, "JSystem/JStudio/jstudio-math.cpp"),
         ],
     },
     {

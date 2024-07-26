@@ -69,7 +69,7 @@ KANDO_FILES:=\
 	$(BUILD_DIR)/src/plugProjectKandoU/itemBigFountain.o\
 	$(BUILD_DIR)/asm/plugProjectKandoU/itemBridge.o\
 	$(BUILD_DIR)/src/plugProjectKandoU/pikiContainer.o\
-	$(BUILD_DIR)/asm/plugProjectKandoU/gameGeneratorCache.o\
+	$(BUILD_DIR)/src/plugProjectKandoU/gameGeneratorCache.o\
 	$(BUILD_DIR)/src/plugProjectKandoU/itemTreasure.o\
 	$(BUILD_DIR)/src/plugProjectKandoU/itemDownFloor.o\
 	$(BUILD_DIR)/src/plugProjectKandoU/kandoLib.o\
@@ -88,8 +88,8 @@ KANDO_FILES:=\
 	$(BUILD_DIR)/asm/plugProjectKandoU/itemWeed.o\
 	$(BUILD_DIR)/src/plugProjectKandoU/aiBridge.o\
 	$(BUILD_DIR)/src/plugProjectKandoU/aiTeki.o\
-	$(BUILD_DIR)/asm/plugProjectKandoU/singleGS_MainGame.o\
-	$(BUILD_DIR)/asm/plugProjectKandoU/singleGS_CaveGame.o\
+	$(BUILD_DIR)/src/plugProjectKandoU/singleGS_MainGame.o\
+	$(BUILD_DIR)/src/plugProjectKandoU/singleGS_CaveGame.o\
 	$(BUILD_DIR)/src/plugProjectKandoU/singleGS_MainResult.o\
 	$(BUILD_DIR)/asm/plugProjectKandoU/singleGS_CaveResult.o\
 	$(BUILD_DIR)/src/plugProjectKandoU/singleGS_WorldMap.o\
@@ -98,7 +98,7 @@ KANDO_FILES:=\
 	$(BUILD_DIR)/src/plugProjectKandoU/baseHIOparms.o\
 	$(BUILD_DIR)/src/plugProjectKandoU/radarInfo.o\
 	$(BUILD_DIR)/src/plugProjectKandoU/singleGS_Movie.o\
-	$(BUILD_DIR)/asm/plugProjectKandoU/navi_demoCheck.o\
+	$(BUILD_DIR)/src/plugProjectKandoU/navi_demoCheck.o\
 	$(BUILD_DIR)/asm/plugProjectKandoU/singleGS_Zukan.o\
 	$(BUILD_DIR)/src/plugProjectKandoU/gameResultTexMgr.o\
 	$(BUILD_DIR)/src/plugProjectKandoU/gamePelletList.o\

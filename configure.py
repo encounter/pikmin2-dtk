@@ -357,8 +357,8 @@ config.libs = [
         "objects": [
             Object(Matching, "JSystem/JGadget/binary.cpp"),
             Object(Matching, "JSystem/JGadget/linklist.cpp"),
-            Object(NonMatching, "JSystem/JGadget/std-list.cpp"),
-            Object(NonMatching, "JSystem/JGadget/std-vector.cpp"),
+            Object(Matching, "JSystem/JGadget/std-list.cpp"),
+            Object(Matching, "JSystem/JGadget/std-vector.cpp"),
         ],
     },
     {

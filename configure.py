@@ -1750,11 +1750,11 @@ config.libs = [
         "objects": [
             Object(NonMatching, "plugProjectEbisawaU/efxBase.cpp"),
             Object(NonMatching, "plugProjectEbisawaU/efxEnemy.cpp"),
-            Object(NonMatching, "plugProjectEbisawaU/efxObject.cpp"),
+            Object(Matching, "plugProjectEbisawaU/efxObject.cpp"),
             Object(NonMatching, "plugProjectEbisawaU/efxPikmin.cpp"),
             Object(Matching, "plugProjectEbisawaU/particle2dMgr.cpp"),
             Object(Matching, "plugProjectEbisawaU/efx2dBase.cpp"),
-            Object(NonMatching, "plugProjectEbisawaU/efx2dEffect.cpp"),
+            Object(Matching, "plugProjectEbisawaU/efx2dEffect.cpp"),
             Object(NonMatching, "plugProjectEbisawaU/particleMgr.cpp"),
             Object(NonMatching, "plugProjectEbisawaU/ebiP2Title.cpp"),
             Object(Matching, "plugProjectEbisawaU/ebiP2TitleUnit.cpp"),
@@ -1833,7 +1833,7 @@ config.libs = [
                 extra_cflags=["-sym on"],
             ),
             Object(
-                NonMatching,
+                Matching,
                 "plugProjectEbisawaU/ebiScreenOmakeCardE.cpp",
                 extra_cflags=["-sym on"],
             ),

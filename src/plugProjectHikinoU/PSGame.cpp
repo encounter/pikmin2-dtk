@@ -161,12 +161,12 @@ void ConductorList::getSeqAndWaveFromConductor(char const* cndName, u8* wScene, 
 	}
 
 	// CAVECONC UNITS
-	if (!strncmp("caveconc", cndName, strlen("caveconc"))) {
+	if (IS_SAME_STRING_N("caveconc", cndName, strlen("caveconc"))) {
 		*bmsName = "caveconc.bms";
 		cndName += strlen("caveconc_");
-		if (!strncmp(cndName, "00", 2)) {
+		if (IS_SAME_STRING_PREFIX(cndName, "00")) {
 			*wScene = PSSystem::WaveScene::WSCENE26_CaveConc_00;
-		} else if (!strncmp(cndName, "05", 2)) {
+		} else if (IS_SAME_STRING_PREFIX(cndName, "05")) {
 			*wScene = PSSystem::WaveScene::WSCENE31_CaveConc_05;
 		} else {
 			*wScene = PSSystem::WaveScene::WSCENE32_CaveConc_10;
@@ -175,7 +175,7 @@ void ConductorList::getSeqAndWaveFromConductor(char const* cndName, u8* wScene, 
 	}
 
 	// NEW UNITS
-	if (!strncmp("new", cndName, strlen("new"))) {
+	if (IS_SAME_STRING_N("new", cndName, strlen("new"))) {
 		strcpy(newSeqName, cndName);
 		strcpy(&newSeqName[6], ".bms");
 		*bmsName = newSeqName;
@@ -184,28 +184,28 @@ void ConductorList::getSeqAndWaveFromConductor(char const* cndName, u8* wScene, 
 	}
 
 	// CAVETILE UNITS
-	if (!strncmp("cavetile", cndName, strlen("cavetile"))) {
+	if (IS_SAME_STRING_N("cavetile", cndName, strlen("cavetile"))) {
 		*bmsName = "cavetile.bms";
 		*wScene  = PSSystem::WaveScene::WSCENE24_CaveTile;
 		return;
 	}
 
 	// CAVEGLASS UNITS
-	if (!strncmp("caveglass", cndName, strlen("caveglass"))) {
+	if (IS_SAME_STRING_N("caveglass", cndName, strlen("caveglass"))) {
 		*bmsName = "caveglass.bms";
 		*wScene  = PSSystem::WaveScene::WSCENE23_CaveOutside;
 		return;
 	}
 
 	// CAVETSUMIKI UNITS
-	if (!strncmp("cavetsumiki", cndName, strlen("cavetsumiki"))) {
+	if (IS_SAME_STRING_N("cavetsumiki", cndName, strlen("cavetsumiki"))) {
 		*bmsName = "cavetsumiki.bms";
 		*wScene  = PSSystem::WaveScene::WSCENE25_CaveToy;
 		return;
 	}
 
 	// CAVERELAX UNITS
-	if (!strncmp("caverelax", cndName, strlen("caverelax"))) {
+	if (IS_SAME_STRING_N("caverelax", cndName, strlen("caverelax"))) {
 		*bmsName = "caverelax.bms";
 		*wScene  = PSSystem::WaveScene::WSCENE28_CaveRestFloor;
 		return;
@@ -526,7 +526,7 @@ void SceneInfo::setStageFlag(SceneInfo::FlagDef flag, SceneInfo::FlagBitShift sh
 	} else if (flag == 1) {
 		mStageFlags |= (1 << shift);
 	} else {
-		JUT_PANICLINE(906, "flagã¯0 or1ã§ã™");
+		JUT_PANICLINE(906, "flag‚Í0 or1‚Å‚·");
 	}
 }
 
@@ -596,7 +596,7 @@ void PikScene::getJumpMainBgm()
  */
 PSSystem::Scene* PikSceneMgr::newAndSetGlobalScene()
 {
-	JUT_ASSERTLINE(1002, !mScenes, "2é‡ã«ã‚°ãƒ­ãƒ¼ãƒãƒ«ã‚·ãƒ¼ãƒ³ã‚’ä½œæˆã—ã‚ˆã†ã¨ã—ãŸ"); // 'I tried to create a global scene twice'
+	JUT_ASSERTLINE(1002, !mScenes, "2d‚ÉƒOƒ[ƒoƒ‹ƒV[ƒ“‚ðì¬‚µ‚æ‚¤‚Æ‚µ‚½"); // 'I tried to create a global scene twice'
 	SceneInfo info;
 	info.mSceneType = SceneInfo::SCENE_NULL;
 	info.mCameras   = 0;
@@ -615,7 +615,7 @@ PSSystem::Scene* PikSceneMgr::newAndSetGlobalScene()
 	                                                                                           JKRDvdRipper::ALLOC_DIR_TOP));
 
 	JAInter::SoundInfo seInfo = { 0x00001F00, 255, 0, 0, 0x3F800000, 0x7f000000 };
-	P2ASSERTLINE(1040, seInfo.mVolume.c <= 127);
+	P2ASSERTLINE(1040, seInfo.mVolume.byteView[0] <= 127);
 	PSSystem::SeSeq* seSeq = new PSSystem::SeSeq("se.bms", seInfo);
 	P2ASSERTLINE(1043, seSeq);
 	seSeq->init();
@@ -637,11 +637,11 @@ PSSystem::Scene* PikSceneMgr::newAndSetCurrentScene(SceneInfo& info)
 {
 	u8 sceneType = info.getSceneType();
 	P2ASSERTLINE(1093, sceneType != SceneInfo::SCENE_NULL);
-	JUT_ASSERTLINE(1094, sceneType < SceneInfo::SCENE_COUNT, "scene noãŒä¸æ­£"); // 'scene no is invalid'
+	JUT_ASSERTLINE(1094, sceneType < SceneInfo::SCENE_COUNT, "scene no‚ª•s³"); // 'scene no is invalid'
 
 	checkScene();
 
-	JUT_ASSERTLINE(1095, !mScenes->mChild, "å‰å›žã®mCurrentSceneã®å¾Œå‡¦ç†ãŒä¸æ­£"); // 'previous mCurrentScene post-processing is invalid
+	JUT_ASSERTLINE(1095, !mScenes->mChild, "‘O‰ñ‚ÌmCurrentScene‚ÌŒãˆ—‚ª•s³"); // 'previous mCurrentScene post-processing is invalid
 
 	info.setStageCamera();
 
@@ -740,7 +740,7 @@ PSSystem::BgmSeq* PikSceneMgr::initBossBgm(SceneInfo& info, u8* wScene)
 	seq->assertValidTrack();
 
 	seq->mRootTrack->mBeatInterval = 60;
-	P2ASSERTLINE(1267, soundInfo.mVolume.c <= 127);
+	P2ASSERTLINE(1267, soundInfo.mVolume.byteView[0] <= 127);
 	return seq;
 }
 
@@ -776,7 +776,7 @@ void PikSceneMgr::initAdditionalBgm(SceneInfo& info, PSSystem::Scene* scene)
 
 	case SceneInfo::CHALLENGE_MODE:
 		soundInfo._05                 = 4;
-		soundInfo.mVolume.c           = 35;
+		soundInfo.mVolume.byteView[0] = 35;
 		soundInfo.mFlag               = 0x1F00;
 		JADUtility::AccessMode flag   = (JADUtility::AccessMode)mAccessMode;
 		PSSystem::DirectedBgm* seqold = (PSSystem::DirectedBgm*)scene->mSeqMgr.getFirstSeq();
@@ -890,7 +890,7 @@ PSSystem::BgmSeq* PikSceneMgr::initMainBgm(SceneInfo& info, u8* wScene)
 			bool loaded         = list->load(txtpath, JKRDvdRipper::ALLOC_DIR_BOTTOM);
 			P2ASSERTLINE(1601, loaded);
 			OSReport("caveID==%d\n", cinfo.getCaveNoFromID());
-			char* name = list->getInfo(cinfo.mFloorNum, cinfo.getCaveNoFromID());
+			char* name = list->getInfo(cinfo.getCaveNoFromID(), cinfo.mFloorNum);
 			u8 wScene2;
 			char* bmsName;
 			list->getSeqAndWaveFromConductor(name, &wScene2, &bmsName);
@@ -992,7 +992,7 @@ PSSystem::BgmSeq* PikSceneMgr::initMainBgm(SceneInfo& info, u8* wScene)
 	}
 
 	P2ASSERTLINE(1749, bgm);
-	P2ASSERTLINE(1750, soundInfo.mVolume.c <= 127);
+	P2ASSERTLINE(1750, soundInfo.mVolume.byteView[0] <= 127);
 
 	return bgm;
 	/*
@@ -2999,7 +2999,7 @@ void PSPlayerChangeToOrimer()
 PSSystem::DirectedBgm* PSGetDirectedMainBgm()
 {
 	PSSystem::SceneMgr* mgr = PSSystem::getSceneMgr();
-	PSSystem::checkSceneMgr(mgr);
+	PSSystem::validateSceneMgr(mgr);
 	mgr->checkScene();
 	PSSystem::Scene* scene = mgr->mScenes->mChild;
 	if (!scene) {

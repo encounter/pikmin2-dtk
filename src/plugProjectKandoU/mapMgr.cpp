@@ -143,7 +143,7 @@ MapMgr::MapMgr()
  * @note Address: 0x8016267C
  * @note Size: 0x7C
  */
-void MapMgr::getStartPosition(Vector3f& outPosition, int p2)
+void MapMgr::getStartPosition(Vector3f& outPosition, int unused)
 {
 	if (mCourseInfo) {
 		outPosition   = mCourseInfo->mStartPosition;
@@ -323,7 +323,7 @@ void ShapeMapMgr::load(LoadArg& arg)
 	mAnimatorCount = 0;
 
 	// You know, casual 100 .btk files
-	char btkPath[256];
+	char btkPath[PATH_MAX];
 	for (int i = 0; i < 100; i++) {
 		sprintf(btkPath, "texanm_%d.btk", i + 1);
 		void* file = JKRFileLoader::getGlbResource(btkPath, nullptr);
@@ -337,7 +337,7 @@ void ShapeMapMgr::load(LoadArg& arg)
 		mTexAnims      = new Sys::MatTexAnimation[mTexAnimCount];
 		mMatAnimators  = new Sys::MatLoopAnimator[mAnimatorCount];
 		for (int i = 0; i < mTexAnimCount; i++) {
-			char btkPath[256];
+			char btkPath[PATH_MAX];
 			sprintf(btkPath, "texanm_%d.btk", i + 1);
 			void* file = JKRFileLoader::getGlbResource(btkPath, nullptr);
 			mTexAnims[i].attachResource(file, mMapModel->getJ3DModel()->getModelData());

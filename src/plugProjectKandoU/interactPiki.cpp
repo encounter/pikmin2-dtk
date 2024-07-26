@@ -36,14 +36,17 @@ bool InteractFueFuki::actPiki(Game::Piki* piki)
 	if (piki->mCurrentState->invincible(piki)) {
 		return false;
 	}
+
 	if (piki->mBrain->mActionId == PikiAI::ACT_Teki || !piki->isPikmin()) {
 		return false;
 	}
+
 	if (piki->mCurrentState->callable()) {
 		PikiAI::CreatureActionArg fueFukiArg = mCreature;
 		piki->mBrain->start(PikiAI::ACT_Teki, &fueFukiArg);
 		return true;
 	}
+
 	return false;
 }
 
@@ -167,10 +170,10 @@ bool InteractFue::actPiki(Game::Piki* piki)
 
 	bool callable;
 	if (actionID == PikiAI::ACT_Teki) {
-		// bool pikiChappyCalled;
 		if (currState->mId != PIKISTATE_Panic) {
 			return false;
 		}
+
 		callable = true;
 		if (BaseHIOParms::sTekiChappyFlag && piki->isFPFlag(FPFLAGS_IsWildBulbmin)) {
 			piki->resetFPFlag(FPFLAGS_IsWildBulbmin);
@@ -418,14 +421,15 @@ bool InteractSuikomi_Test::actPiki(Game::Piki* piki)
 	if (piki->mCurrentState->invincible(piki)) {
 		return false;
 	}
+
 	if (mCreature->isTeki()) {
 		EnemyBase* teki = static_cast<EnemyBase*>(mCreature);
 		piki->setTekiKillID(teki->getEnemyTypeID());
 	} else {
 		piki->mTekiKillID = -1;
 	}
-	SuikomiStateArg suikomiArg(mCreature, _14, mCollPart);
-	//               gottem
+
+	SuikomiStateArg suikomiArg(mCreature, mCollpart, mStomachCollpart);
 	piki->mFsm->transit(piki, PIKISTATE_Suikomi, &suikomiArg);
 	return true;
 }
@@ -688,7 +692,7 @@ bool InteractKill::actPiki(Game::Piki* piki)
 			piki->mTekiKillID = -1;
 		}
 		if (piki->isPikmin()) {
-			DeathMgr::inc(0);
+			DeathMgr::inc(DeathCounter::COD_Battle);
 		}
 	}
 	piki->kill(mKillArg);

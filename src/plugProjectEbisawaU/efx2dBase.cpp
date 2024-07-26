@@ -4,14 +4,6 @@
 #include "P2Macros.h"
 #include "TParticle2dMgr.h"
 
-/**
- * @note Address: N/A
- * @note Size: 0xE4
- */
-static void _Print(char* name, ...) {
-	OSReport("efx2dBase");
-}
-
 namespace efx2d {
 
 /**

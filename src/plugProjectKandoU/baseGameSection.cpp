@@ -106,7 +106,7 @@ BaseGameSection::BaseGameSection(JKRHeap* heap)
  */
 void BaseGameSection::useSpecificFBTexture(JUTTexture* texture)
 {
-	JUT_ASSERTLINE(1523, !mFbTexture, "ï¼’å›žã¯ç„¡ç†ï½—\n"); // 'it's impossible to do twice lol'
+	JUT_ASSERTLINE(1523, !mFbTexture, "‚Q‰ñ‚Í–³—‚—\n"); // 'it's impossible to do twice lol'
 	mFbTexture                    = mXfbImage;
 	mXfbImage                     = texture;
 	Game::gameSystem->mXfbTexture = mXfbImage;
@@ -118,7 +118,7 @@ void BaseGameSection::useSpecificFBTexture(JUTTexture* texture)
  */
 void BaseGameSection::restoreFBTexture()
 {
-	JUT_ASSERTLINE(1533, mFbTexture, "useSpecificFBTexture ã—ã¦ãªã„ï½—\n"); // 'i haven't used useSpecificFBTexture lol'
+	JUT_ASSERTLINE(1533, mFbTexture, "useSpecificFBTexture ‚µ‚Ä‚È‚¢‚—\n"); // 'i haven't used useSpecificFBTexture lol'
 	mXfbImage                     = mFbTexture;
 	mFbTexture                    = nullptr;
 	Game::gameSystem->mXfbTexture = mXfbImage;
@@ -132,7 +132,7 @@ BaseGameSection::~BaseGameSection()
 {
 	theExpHeap = nullptr;
 	PSSystem::SceneMgr* sceneMgr;
-	PSSystem::checkSceneMgr(sceneMgr = PSSystem::getSceneMgr());
+	PSSystem::validateSceneMgr(sceneMgr = PSSystem::getSceneMgr());
 	sceneMgr->deleteCurrentScene();
 	TParticle2dMgr::deleteInstance();
 	particleMgr->deleteInstance_TPkEffectMgr();
@@ -597,7 +597,7 @@ void BaseGameSection::initGenerators()
 		addGenNode(limitGeneratorMgr);
 
 		plantsGeneratorMgr        = new GeneratorMgr;
-		plantsGeneratorMgr->mName = "Generator(æ¤ç‰©)";
+		plantsGeneratorMgr->mName = "Generator(A•¨)";
 		addGenNode(plantsGeneratorMgr);
 
 		dayGeneratorMgr        = new GeneratorMgr;
@@ -622,7 +622,7 @@ void BaseGameSection::initGenerators()
 
 		int fileIdx = 0;
 
-		char filenameCharArr[256];
+		char filenameCharArr[PATH_MAX];
 		void* generatorFiles[64];
 		GeneratorMgr* generatorManagers[64];
 
@@ -657,10 +657,7 @@ void BaseGameSection::initGenerators()
 			void* plantsgenFile = LoadTextFile(filenameCharArr);
 			if (plantsgenFile) {
 				RamStream plantsGenTxt(plantsgenFile, -1);
-				plantsGenTxt.mMode = 1;
-				if (plantsGenTxt.mMode == 1) {
-					plantsGenTxt.mTabCount = 0;
-				}
+				plantsGenTxt.setMode(STREAM_MODE_TEXT, 1);
 				plantsGeneratorMgr->read(plantsGenTxt, false);
 				plantsGeneratorMgr->updateUseList();
 				generatorFiles[fileIdx]    = plantsgenFile;
@@ -1229,7 +1226,6 @@ void BaseGameSection::setDefaultPSSceneInfo(PSGame::SceneInfo& sceneInfo)
  * @note Address: 0x8014E130
  * @note Size: 0x68C
  */
-// void prepareHoleIn__Q24Game15BaseGameSectionFR10Vector3f b()
 void BaseGameSection::prepareHoleIn(Vector3f& suroundPos, bool killPikihead)
 {
 	Screen::gGame2DMgr->mScreenMgr->reset();
@@ -1244,7 +1240,8 @@ void BaseGameSection::prepareHoleIn(Vector3f& suroundPos, bool killPikihead)
 				DeathMgr::inc(DeathCounter::COD_All);
 				if (gameSystem->isChallengeMode()) {
 					GameMessageVsPikminDead deadPikmin;
-					sendMessage(deadPikmin);
+					// REALLY????? WHAT FILE ARE WE IN???
+					gameSystem->mSection->sendMessage(deadPikmin);
 				}
 			}
 		}
@@ -1271,8 +1268,8 @@ void BaseGameSection::prepareHoleIn(Vector3f& suroundPos, bool killPikihead)
 				vec += suroundPos;
 				vec.y = mapMgr->getMinY(vec);
 				piki->setPosition(vec, false);
-				PikiAI::ActFormationInitArg arg(aliveOrima, 1);
-				arg.mDoUseTouchCooldown = false;
+				PikiAI::ActFormationInitArg arg(aliveOrima);
+				arg.mIsDemoFollow = true;
 				piki->mBrain->start(PikiAI::ACT_Formation, &arg);
 				piki->movie_begin(false);
 			}
@@ -1287,14 +1284,15 @@ void BaseGameSection::prepareHoleIn(Vector3f& suroundPos, bool killPikihead)
  * @note Address: 0x8014E7BC
  * @note Size: 0x714
  */
-// void prepareFountainOn__Q24Game15BaseGameSectionFR10Vector3f()
 void BaseGameSection::prepareFountainOn(Vector3f& suroundPos)
 {
-	Iterator<BaseItem> iFountain = ItemBigFountain::mgr;
-	CI_LOOP(iFountain)
-	{
-		ItemBigFountain::Item* fountain = static_cast<ItemBigFountain::Item*>(*iFountain);
-		fountain->killAllEffect();
+	if (ItemBigFountain::mgr) {
+		Iterator<BaseItem> iFountain = ItemBigFountain::mgr;
+		CI_LOOP(iFountain)
+		{
+			ItemBigFountain::Item* fountain = static_cast<ItemBigFountain::Item*>(*iFountain);
+			fountain->killAllEffect();
+		}
 	}
 	Screen::gGame2DMgr->mScreenMgr->reset();
 	Navi* aliveOrima = naviMgr->getAliveOrima(ALIVEORIMA_Active);
@@ -1308,7 +1306,8 @@ void BaseGameSection::prepareFountainOn(Vector3f& suroundPos)
 			DeathMgr::inc(DeathCounter::COD_All);
 			if (gameSystem->isChallengeMode()) {
 				GameMessageVsPikminDead deadPikmin;
-				sendMessage(deadPikmin);
+				// OH MY FUCKING GOD NOT AGAIN
+				gameSystem->mSection->sendMessage(deadPikmin);
 			}
 		}
 	}
@@ -1325,10 +1324,13 @@ void BaseGameSection::prepareFountainOn(Vector3f& suroundPos)
 			piki->endStick();
 			piki->mFsm->transitForce(piki, PIKISTATE_Walk, nullptr);
 			piki->getCreatureID();
+
+			PikiAI::ActFormationInitArg arg(aliveOrima, false);
+
 			piki->mNavi = aliveOrima;
 
-			PikiAI::ActFormationInitArg arg(aliveOrima);
-			arg.mIsDemoFollow = true;
+			arg.mIsDemoFollow = true; // MAKE UP YOUR DAMN MIND I STG
+
 			piki->mBrain->start(PikiAI::ACT_Formation, &arg);
 			piki->movie_begin(false);
 		}
@@ -1344,7 +1346,7 @@ void BaseGameSection::prepareFountainOn(Vector3f& suroundPos)
  */
 void BaseGameSection::initLights()
 {
-	mLightMgr           = new GameLightMgr("ã‚²ãƒ¼ãƒ ãƒ©ã‚¤ãƒˆãƒžãƒãƒ¼ã‚¸ãƒ£"); // game light manager
+	mLightMgr           = new GameLightMgr("ƒQ[ƒ€ƒ‰ƒCƒgƒ}ƒl[ƒWƒƒ"); // game light manager
 	mLightMgr->mTimeMgr = gameSystem->mTimeMgr;
 	addGenNode(mLightMgr);
 	particleMgr->mLightMgr = mLightMgr;
@@ -1434,7 +1436,8 @@ void BaseGameSection::draw2D(Graphics& gfx)
 	gfx.mOrthoGraph.setPort();
 	J2DPrint print(JFWSystem::systemFont, 0.0f);
 	print.initiate();
-	print.setColors(JUtility::TColor(0x38, 0x9f, 0xf7, 0xff), JUtility::TColor(0x9e, 0xdb, 0xff, 0xff));
+	print.setCharColor(JUtility::TColor(158, 219, 255, 255));
+	print.setGradColor(JUtility::TColor(56, 159, 247, 255));
 	JKRHeap::sCurrentHeap->getFreeSize();
 	// print was likely showing how much head space was left
 }
@@ -1446,7 +1449,7 @@ void BaseGameSection::draw2D(Graphics& gfx)
 void BaseGameSection::setupViewportMatrix(Graphics&)
 {
 	JUT_PANICLINE(0, "DON'T USE THIS !\n");
-	JUT_PANICLINE(0, "ä½¿ã£ã¦ãªã„ã‹ã‚‚\n");
+	JUT_PANICLINE(0, "Žg‚Á‚Ä‚È‚¢‚©‚à\n");
 	// UNUSED FUNCTION
 }
 
@@ -1842,7 +1845,7 @@ void BaseGameSection::clearHeap()
 {
 	TexCaster::Mgr::deleteInstance();
 	PSSystem::SceneMgr* mgr = PSSystem::getSceneMgr();
-	PSSystem::checkSceneMgr(mgr);
+	PSSystem::validateSceneMgr(mgr);
 	mgr->deleteCurrentScene();
 	GXWaitDrawDone();
 	itemMgr->clearGlobalPointers();
@@ -1993,7 +1996,7 @@ void BaseGameSection::setupFixMemory_dvdload()
 	mMizuTexture  = new JUTTexture(file);
 	sys->heapStatusStart("fbTexture", nullptr);
 
-	mXfbImage = new JUTTexture((u32)(sys->getRenderModeObj()->fbWidth >> 1), (u32)(sys->getRenderModeObj()->efbHeight >> 1), GX_TF_RGB565);
+	mXfbImage = new JUTTexture((System::getRenderModeWidth() >> 1) & 0x7FFF, (System::getRenderModeHeight() >> 1) & 0x7FFF, GX_TF_RGB565);
 	gameSystem->mXfbTexture = mXfbImage;
 
 	sys->heapStatusEnd("fbTexture");
@@ -2013,7 +2016,7 @@ void BaseGameSection::setupFixMemory_dvdload()
 	efx::OnyonSpotData* spot = new efx::OnyonSpotData;
 	spot->entry();
 	particleMgr->endEntryModelEffect();
-	// reload particleMgr here
+	// Instance_TPkEffectMgr isn't static, checked particleMgr.o
 	particleMgr->Instance_TPkEffectMgr();
 
 	sys->heapStatusEnd("particle");
@@ -2039,235 +2042,6 @@ void BaseGameSection::setupFixMemory_dvdload()
 
 	createScreenRootNode();
 	sys->heapStatusEnd("setupFixMemory");
-
-	/*
-	stwu     r1, -0x20(r1)
-	mflr     r0
-	lis      r4, lbl_8047C948@ha
-	li       r5, 0
-	stw      r0, 0x24(r1)
-	stw      r31, 0x1c(r1)
-	addi     r31, r4, lbl_8047C948@l
-	addi     r4, r31, 0x2e0
-	stw      r30, 0x18(r1)
-	mr       r30, r3
-	stw      r29, 0x14(r1)
-	stw      r28, 0x10(r1)
-	lwz      r3, sys@sda21(r13)
-	bl       heapStatusStart__6SystemFPcP7JKRHeap
-	li       r0, 0
-	addi     r3, r31, 0x2f0
-	stw      r0, 8(r1)
-	li       r4, 0
-	li       r5, 0
-	li       r6, 0
-	li       r7, 0
-	li       r8, 1
-	li       r9, 0
-	li       r10, 0
-	bl
-loadToMainRAM__12JKRDvdRipperFPCcPUc15JKRExpandSwitchUlP7JKRHeapQ212JKRDvdRipper15EAllocDirectionUlPiPUl
-	mr       r0, r3
-	li       r3, 0x40
-	mr       r28, r0
-	bl       __nw__FUl
-	or.      r29, r3, r3
-	beq      lbl_80150408
-	li       r0, 0
-	mr       r4, r28
-	stw      r0, 0x28(r29)
-	li       r5, 0
-	bl       storeTIMG__10JUTTextureFPC7ResTIMGUc
-	lbz      r0, 0x3b(r29)
-	rlwinm   r0, r0, 0, 0x1e, 0x1e
-	stb      r0, 0x3b(r29)
-
-lbl_80150408:
-	stw      r29, 0xf4(r30)
-	addi     r4, r31, 0x304
-	li       r5, 0
-	lwz      r3, sys@sda21(r13)
-	bl       heapStatusStart__6SystemFPcP7JKRHeap
-	li       r3, 0x40
-	bl       __nw__FUl
-	or.      r29, r3, r3
-	beq      lbl_80150454
-	bl       getRenderModeObj__6SystemFv
-	lhz      r28, 6(r3)
-	bl       getRenderModeObj__6SystemFv
-	lhz      r0, 4(r3)
-	mr       r3, r29
-	rlwinm   r5, r28, 0x1f, 0x11, 0x1f
-	li       r6, 4
-	rlwinm   r4, r0, 0x1f, 0x11, 0x1f
-	bl       __ct__10JUTTextureFii9_GXTexFmt
-	mr       r29, r3
-
-lbl_80150454:
-	stw      r29, 0x154(r30)
-	addi     r4, r31, 0x304
-	lwz      r0, 0x154(r30)
-	lwz      r3, gameSystem__4Game@sda21(r13)
-	stw      r0, 0x54(r3)
-	lwz      r3, sys@sda21(r13)
-	bl       heapStatusEnd__6SystemFPc
-	lwz      r3, sys@sda21(r13)
-	addi     r4, r31, 0x14c
-	li       r5, 0
-	bl       heapStatusStart__6SystemFPcP7JKRHeap
-	bl       globalInstance__11ParticleMgrFv
-	lwz      r3, particleMgr@sda21(r13)
-	lis      r4, 0x18
-	bl       createHeap__11ParticleMgrFUl
-	lwz      r3, particleMgr@sda21(r13)
-	addi     r4, r31, 0x310
-	li       r5, 0x7d0
-	li       r6, 0x12c
-	li       r7, 0x80
-	bl       createMgr__11ParticleMgrFPcUlUlUl
-	lwz      r4, particleMgr@sda21(r13)
-	mr       r3, r30
-	bl       addGenNode__Q24Game14BaseHIOSectionFP5CNode
-	bl       globalInstance__14TParticle2dMgrFv
-	lis      r4, 0x0003E800@ha
-	lwz      r3, particle2dMgr@sda21(r13)
-	addi     r4, r4, 0x0003E800@l
-	bl       createHeap__14TParticle2dMgrFUl
-	lwz      r3, particle2dMgr@sda21(r13)
-	addi     r4, r31, 0x330
-	li       r5, 0x1d4
-	li       r6, 0x28
-	li       r7, 0x80
-	bl       createMgr__14TParticle2dMgrFPcUlUlUl
-	lwz      r4, particle2dMgr@sda21(r13)
-	mr       r3, r30
-	bl       addGenNode__Q24Game14BaseHIOSectionFP5CNode
-	lwz      r3, particleMgr@sda21(r13)
-	bl       beginEntryModelEffect__11ParticleMgrFv
-	li       r3, 0x30
-	bl       __nw__FUl
-	or.      r29, r3, r3
-	beq      lbl_80150520
-	bl       __ct__5CNodeFv
-	lis      r4, __vt__15ModelEffectData@ha
-	lis      r3, __vt__Q23efx13OnyonSpotData@ha
-	addi     r0, r4, __vt__15ModelEffectData@l
-	stw      r0, 0(r29)
-	addi     r0, r3, __vt__Q23efx13OnyonSpotData@l
-	stw      r0, 0(r29)
-
-lbl_80150520:
-	mr       r3, r29
-	bl       entry__15ModelEffectDataFv
-	lwz      r3, particleMgr@sda21(r13)
-	bl       endEntryModelEffect__11ParticleMgrFv
-	lwz      r3, particleMgr@sda21(r13)
-	bl       Instance_TPkEffectMgr__11ParticleMgrFv
-	lwz      r3, sys@sda21(r13)
-	addi     r4, r31, 0x14c
-	bl       heapStatusEnd__6SystemFPc
-	li       r3, 0x18
-	bl       __nw__FUl
-	or.      r0, r3, r3
-	beq      lbl_8015055C
-	bl       __ct__Q24Game9UpdateMgrFv
-	mr       r0, r3
-
-lbl_8015055C:
-	stw      r0, collisionUpdateMgr__4Game@sda21(r13)
-	mr       r3, r0
-	li       r4, 3
-	bl       create__Q24Game9UpdateMgrFi
-	lwz      r3, sys@sda21(r13)
-	addi     r4, r31, 0x358
-	li       r5, 0
-	bl       heapStatusStart__6SystemFPcP7JKRHeap
-	li       r3, 0xd0
-	bl       __nw__FUl
-	or.      r4, r3, r3
-	beq      lbl_80150594
-	bl       __ct__Q24Game7NaviMgrFv
-	mr       r4, r3
-
-lbl_80150594:
-	cmplwi   r4, 0
-	stw      r4, naviMgr__4Game@sda21(r13)
-	beq      lbl_801505A4
-	addi     r4, r4, 0x1c
-
-lbl_801505A4:
-	lwz      r3, gameSystem__4Game@sda21(r13)
-	bl       addObjectMgr__Q24Game10GameSystemFP16GenericObjectMgr
-	lwz      r3, naviMgr__4Game@sda21(r13)
-	lwz      r12, 0(r3)
-	lwz      r12, 0xa4(r12)
-	mtctr    r12
-	bctrl
-	li       r3, 0x80
-	bl       __nw__FUl
-	or.      r4, r3, r3
-	beq      lbl_801505D8
-	bl       __ct__Q24Game7PikiMgrFv
-	mr       r4, r3
-
-lbl_801505D8:
-	cmplwi   r4, 0
-	stw      r4, pikiMgr__4Game@sda21(r13)
-	beq      lbl_801505E8
-	addi     r4, r4, 0x1c
-
-lbl_801505E8:
-	lwz      r3, gameSystem__4Game@sda21(r13)
-	bl       addObjectMgr__Q24Game10GameSystemFP16GenericObjectMgr
-	lwz      r4, pikiMgr__4Game@sda21(r13)
-	mr       r3, r30
-	bl       addGenNode__Q24Game14BaseHIOSectionFP5CNode
-	lwz      r4, naviMgr__4Game@sda21(r13)
-	mr       r3, r30
-	bl       addGenNode__Q24Game14BaseHIOSectionFP5CNode
-	lwz      r3, pikiMgr__4Game@sda21(r13)
-	lwz      r4, 0x114(r30)
-	lwz      r12, 0(r3)
-	lwz      r12, 0x9c(r12)
-	mtctr    r12
-	bctrl
-	lwz      r3, sys@sda21(r13)
-	addi     r4, r31, 0x358
-	bl       heapStatusEnd__6SystemFPc
-	li       r3, 0x40
-	bl       __nw__FUl
-	or.      r0, r3, r3
-	beq      lbl_80150644
-	bl       __ct__Q24Game9PelletMgrFv
-	mr       r0, r3
-
-lbl_80150644:
-	stw      r0, pelletMgr__4Game@sda21(r13)
-	mr       r3, r0
-	li       r4, 0
-	bl       createManagers__Q24Game9PelletMgrFUl
-	lwz      r4, pelletMgr__4Game@sda21(r13)
-	cmplwi   r4, 0
-	beq      lbl_80150664
-	addi     r4, r4, 0x1c
-
-lbl_80150664:
-	lwz      r3, gameSystem__4Game@sda21(r13)
-	bl       addObjectMgr__Q24Game10GameSystemFP16GenericObjectMgr
-	mr       r3, r30
-	bl       createScreenRootNode__Q24Game14BaseHIOSectionFv
-	lwz      r3, sys@sda21(r13)
-	addi     r4, r31, 0x2e0
-	bl       heapStatusEnd__6SystemFPc
-	lwz      r0, 0x24(r1)
-	lwz      r31, 0x1c(r1)
-	lwz      r30, 0x18(r1)
-	lwz      r29, 0x14(r1)
-	lwz      r28, 0x10(r1)
-	mtlr     r0
-	addi     r1, r1, 0x20
-	blr
-	*/
 }
 
 } // namespace Game
@@ -2313,7 +2087,6 @@ void BaseGameSection::setupFloatMemory()
 {
 	bool cave = false;
 	gameSystem->mFlags.typeView &= 0xFE; // this matches, but it's a bit odd
-	// gameSystem->resetFlag(0xFFFFFF01); // this matches, but it's extraordinarily stupid
 
 	PSSystem::SingletonBase<PSM::ObjMgr>::newInstance();
 	PSSystem::SingletonBase<PSM::BossBgmFader::Mgr>::newInstance();
@@ -2328,13 +2101,11 @@ void BaseGameSection::setupFloatMemory()
 	lifeGaugeMgr = new LifeGaugeMgr;
 	lifeGaugeMgr->loadResource();
 
-	CarryInfoMgr* mgr;
 	if (gameSystem->isStoryMode()) {
-		mgr = new CarryInfoMgr(48);
+		carryInfoMgr = new CarryInfoMgr(48);
 	} else {
-		mgr = new CarryInfoMgr(64);
+		carryInfoMgr = new CarryInfoMgr(64);
 	}
-	carryInfoMgr = mgr;
 	carryInfoMgr->loadResource();
 
 	platMgr   = new PlatMgr;
@@ -2496,12 +2267,14 @@ void BaseGameSection::setupFloatMemory()
 		sys->heapStatusEnd("PlatCellMgr");
 	}
 	sys->heapStatusEnd("CellMgr");
+
 	if (cave) {
 		static_cast<RoomMapMgr*>(mapMgr)->placeObjects();
 	}
-	Graphics* gfx = sys->mGfx;
-	initViewports(*gfx);
-	particleMgr->setViewport(*gfx);
+
+	Graphics& gfx = *sys->getGfx();
+	initViewports(gfx);
+	particleMgr->setViewport(gfx);
 	particleMgr->start();
 
 	initGenerators();
@@ -2509,10 +2282,11 @@ void BaseGameSection::setupFloatMemory()
 	itemMgr->initDependency();
 	cameraMgr->init(CAMNAVI_Olimar);
 
-	f32 angle = _aiConstants->mCameraAngle.mData * DEG2RAD * PI;
+	f32 angle = TORADIANS(_aiConstants->mCameraAngle.mData);
 	angle     = roundAng(angle + mapMgr->getMapRotation());
 	mapMgr->getMapRotation();
 	cameraMgr->setCameraAngle(angle, CAMNAVI_Both);
+
 	cameraMgr->controllerUnLock(CAMNAVI_Both);
 	sys->heapStatusEnd("setupFloatMemory");
 

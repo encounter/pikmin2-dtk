@@ -8,7 +8,6 @@
 
 namespace JStudio {
 struct TObject;
-struct TVariableValue;
 
 struct TAdaptor {
 	struct TSetVariableValue_immediate {
@@ -22,6 +21,7 @@ struct TAdaptor {
 		f32 _04; // _04
 	};
 
+	typedef void (JStudio::TAdaptor::*AdaptorDoFunction)(JStudio::data::TEOperationData, const void*, u32);
 	typedef void (*StaticCapsSetVariableValueFunction)(TAdaptor*, TObject*, u32, const void*, u32);
 
 	inline TAdaptor(TVariableValue* values, int count)
@@ -58,6 +58,12 @@ struct TAdaptor {
 	void adaptor_updateVariableValue();
 	void adaptor_updateVariableValue(JStudio::TObject*, u32);
 
+	inline TVariableValue& adaptor_referVariableValue(u32 idx) { return mVariableValues[idx]; }
+
+	inline TVariableValue* adaptor_getVariableValue(u32 idx) { return &mVariableValues[idx]; }
+
+	inline void adaptor_setVariableValue_immediate(u32 idx, f32 val) { adaptor_referVariableValue(idx).setValueImmediate(val); }
+
 	// VTBL _00
 	TVariableValue* mVariableValues; // _04
 	int mCount;                      // _08
@@ -86,11 +92,13 @@ struct TAdaptor_actor : public TAdaptor {
 	virtual void adaptor_do_TEXTURE_ANIMATION(JStudio::data::TEOperationData, const void*, u32)      = 0; // _48
 	virtual void adaptor_do_TEXTURE_ANIMATION_MODE(JStudio::data::TEOperationData, const void*, u32) = 0; // _4C
 
-	JStudio::TVariableValue _0C[14]; // _0C
-
 	static const u32 sauVariableValue_3_TRANSLATION_XYZ[3];
 	static const u32 sauVariableValue_3_ROTATION_XYZ[3];
 	static const u32 sauVariableValue_3_SCALING_XYZ[3];
+
+	// _00     = VTBL
+	// _00-_0C = TAdaptor
+	JStudio::TVariableValue _0C[14]; // _0C
 };
 
 struct TAdaptor_ambientLight : public TAdaptor {
@@ -130,6 +138,7 @@ struct TAdaptor_camera : public TAdaptor {
 
 	JStudio::TVariableValue _0C[0xC]; // _0C
 
+	static const u32 sauVariableValue_2_DISTANCE_NEAR_FAR[2];
 	static const u32 sauVariableValue_3_POSITION_XYZ[3];
 	static const u32 sauVariableValue_3_TARGET_POSITION_XYZ[3];
 };
@@ -147,6 +156,7 @@ struct TAdaptor_fog : public TAdaptor {
 
 	JStudio::TVariableValue _0C[6];
 
+	static const u32 sauVariableValue_2_RANGE_BEGIN_END[2];
 	static const u32 sauVariableValue_3_COLOR_RGB[3];
 	static const u32 sauVariableValue_4_COLOR_RGBA[4];
 };
@@ -162,12 +172,15 @@ struct TAdaptor_light : public TAdaptor {
 	virtual void adaptor_do_ENABLE(JStudio::data::TEOperationData, const void*, u32)  = 0; // _20
 	virtual void adaptor_do_FACULTY(JStudio::data::TEOperationData, const void*, u32) = 0; // _24
 
-	JStudio::TVariableValue _0C[13]; // _0C
-
+	static const u32 sauVariableValue_2_DIRECTION_THETA_PHI[2];
 	static const u32 sauVariableValue_3_COLOR_RGB[3];
 	static const u32 sauVariableValue_4_COLOR_RGBA[4];
 	static const u32 sauVariableValue_3_POSITION_XYZ[3];
 	static const u32 sauVariableValue_3_TARGET_POSITION_XYZ[3];
+
+	// _00     = VTBL
+	// _00-_0C = TAdaptor
+	JStudio::TVariableValue _0C[13]; // _0C
 };
 
 struct TAdaptor_message : public TAdaptor {

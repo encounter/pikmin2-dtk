@@ -1,6 +1,6 @@
-#include "Game/Entities/PanModokiBase.h"
 #include "Game/EnemyAnimKeyEvent.h"
 #include "Game/EnemyFunc.h"
+#include "Game/Entities/PanModokiBase.h"
 #include "Game/Stickers.h"
 
 namespace Game {
@@ -202,7 +202,7 @@ void StateBack::exec(EnemyBase* enemy)
 			if (target) {
 				bool check = false;
 				if ((gameSystem && gameSystem->isVersusMode() && !enemy->isStickTo() && !target->mCaptureMatrix)
-				    || (target->getKind() == PELTYPE_CARCASS && !target->isAlive())
+				    || (target->getKind() == PelletType::Carcass && !target->isAlive())
 				    || FABS(target->getPosition().y - enemy->getPosition().y) > 50.0f) {
 
 					check = true;
@@ -297,7 +297,7 @@ void StatePulled::exec(EnemyBase* enemy)
 			} else {
 				bool check = false;
 				if ((gameSystem && gameSystem->isVersusMode() && !enemy->isStickTo() && !target->mCaptureMatrix)
-				    || (target->getKind() == PELTYPE_CARCASS && !target->isAlive())
+				    || (target->getKind() == PelletType::Carcass && !target->isAlive())
 				    || FABS(target->getPosition().y - enemy->getPosition().y) > 50.0f) {
 
 					check = true;
@@ -679,8 +679,8 @@ void StateCarryEnd::exec(EnemyBase* enemy)
 		transit(enemy, PANMODOKI_Dead, nullptr);
 
 	} else {
-		Vector3f diff = enemy->mHomePosition - enemy->getPosition();
-		if (diff.boundedX(2.0f) && diff.boundedZ(2.0f)) {
+		Vector3f diff = Vector3f::sub2(enemy->mHomePosition, enemy->getPosition());
+		if (diff.isBoundedX(2.0f) && diff.isBoundedZ(2.0f)) {
 			Vector3f homePos = enemy->mHomePosition;
 			enemy->onSetPosition(homePos);
 			if (enemy->mCurAnim->mIsPlaying && enemy->mCurAnim->mType == KEYEVENT_LOOP_END) {

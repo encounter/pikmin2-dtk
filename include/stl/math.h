@@ -21,18 +21,20 @@ extern "C" {
 #define NAN      (*(f32*)__float_nan)
 #define HUGE_VAL (*(f64*)__double_huge)
 
-#define LONG_TAU   6.2831854820251465
-#define TAU        6.2831855f
-#define PI         3.1415927f
-#define HALF_PI    1.5707964f
-#define THIRD_PI   1.0471976f
-#define QUARTER_PI 0.7853982f
+#define LONG_TAU    6.2831854820251465
+#define TAU         6.2831855f
+#define PI          3.1415927f
+#define HALF_PI     1.5707964f
+#define HALF_PI_F64 1.5707963267948966
+#define THIRD_PI    1.0471976f
+#define QUARTER_PI  0.7853982f
 
 #define SIN_2_5 0.43633234f
 #define M_SQRT3 1.73205f
 
 #define DEG2RAD            (1.0f / 180.0f)
-#define RAD2DEG            (57.295776f)
+#define RAD2DEG            (180.0f / PI)
+#define RAD2DEG_F64        (57.29577951308232)
 #define TORADIANS(degrees) (PI * (DEG2RAD * degrees))
 #define TODEGREES(radians) (RAD2DEG * radians)
 
@@ -162,5 +164,10 @@ static inline f32 dolsqrtfull(f32 mag)
 }
 
 static inline f32 scaleValue(f32 scale, f32 value) { return scale * value; }
+
+static inline f32 dolsinf(f32 val) { return (f32)sin((f32)val); }
+static inline f32 dolcosf(f32 val) { return (f32)cos((f32)val); }
+static inline f32 doltanf(f32 val) { return (f32)tan((f32)val); }
+static inline f32 dolatan2f(f32 val1, f32 val2) { return (f32)atan2((f32)val1, (f32)val2); }
 
 #endif

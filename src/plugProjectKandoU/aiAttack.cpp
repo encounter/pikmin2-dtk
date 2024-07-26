@@ -8,11 +8,7 @@
 
 #define PIKIATTACK_JUMP_CHANCE (0.2f)
 
-/**
- * @note Address: N/A
- * @note Size: 0xE4
- */
-static void _Print(char* name, ...) { OSReport("actAttack"); }
+static const char aiAttackName[] = "actAttack";
 
 namespace PikiAI {
 

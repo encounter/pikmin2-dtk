@@ -10,6 +10,9 @@
 #include "id32.h"
 #include "kh/khDayEndResult.h"
 
+// HOW MUCH IS THE DEBT
+#define DEBT_AMOUNT (10000)
+
 namespace Game {
 struct CourseInfo;
 struct Pellet;
@@ -414,6 +417,9 @@ struct PlayData : public CNode {
 
 	inline bool isStoryFlag(StoryFlags flag) { return mStoryFlags & flag; }
 
+	inline bool hasGotWhites() { return !isDemoFlag(DEMO_White_Candypop); }
+	inline bool hasGotPurples() { return !isDemoFlag(DEMO_Purple_Candypop); }
+
 	inline PelletFirstMemory* getZukanStat() { return mZukanStat; }
 
 	inline void writeSprayCounts(Stream& output, char* textBuffer)
@@ -467,6 +473,8 @@ struct PlayData : public CNode {
 	inline void addPokos(int pokos) { mPokoCount += pokos; }
 
 	inline u8& getDebtProgressFlags(int flagID) { return ((u8*)(&mDebtProgressFlags))[flagID]; }
+
+	inline PelletCropMemory* getCaveCropMemory() const { return mCaveCropMemory; }
 
 	// _00     = VTBL
 	// _00-_18 = CNode

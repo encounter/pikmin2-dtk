@@ -98,8 +98,8 @@ void J3DDisplayListObj::beginDL()
 {
 	swapBuffer();
 	sInterruptFlag = OSDisableInterrupts();
-	GDInitGDLObj(&sGDLObj, mDisplayList[0], mCapacity);
-	__GDCurrentDL = &sGDLObj;
+	GDInitGDLObj(&J3DDisplayListObj::sGDLObj, mDisplayList[0], mCapacity);
+	__GDCurrentDL = &J3DDisplayListObj::sGDLObj;
 }
 
 /**

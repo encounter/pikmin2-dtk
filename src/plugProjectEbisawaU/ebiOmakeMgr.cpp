@@ -20,7 +20,7 @@ void FSMStateMachine::init(TMgr* mgr)
 	registerState(new FSMState_OmakeScreen);
 	registerState(new FSMState_CardEScreen);
 	registerState(new FSMState_SelectGame);
-	registerState(new FSMState(Movie, "MovieçŠ¶æ…‹"));
+	registerState(new FSMState(Movie, "Movieó‘Ô"));
 }
 
 /**
@@ -220,7 +220,7 @@ void TMgr::loadResource()
 {
 	sys->heapStatusStart("TOmakeMgr::loadResource", nullptr);
 
-	char buf[256];
+	char buf[PATH_MAX];
 	og::newScreen::makeLanguageResName(buf, "omake.szs");
 	JKRArchive* arc = JKRMountArchive(buf, JKRArchive::EMM_Mem, nullptr, JKRArchive::EMD_Head);
 	P2ASSERTLINE(271, arc);

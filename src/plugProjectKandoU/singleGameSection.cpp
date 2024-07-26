@@ -1021,10 +1021,10 @@ void SingleGameSection::setDispMemberSMenu(og::Screen::DispMemberSMenuAll& disp)
 	disp.mSMenuMap.mCourseIndex         = mCurrentCourseInfo->mCourseIndex;
 
 	// Items screen data
-	disp.mSMenuItem.mSpicySprayCount  = playData->getDopeCount(SPRAY_TYPE_BITTER);
-	disp.mSMenuItem.mSpicyBerryCount  = playData->getDopeFruitCount(SPRAY_TYPE_BITTER);
-	disp.mSMenuItem.mBitterSprayCount = playData->getDopeCount(SPRAY_TYPE_SPICY);
-	disp.mSMenuItem.mBitterBerryCount = playData->getDopeFruitCount(SPRAY_TYPE_SPICY);
+	disp.mSMenuItem.mBitterSprayCount = playData->getDopeCount(SPRAY_TYPE_BITTER);
+	disp.mSMenuItem.mBitterBerryCount = playData->getDopeFruitCount(SPRAY_TYPE_BITTER);
+	disp.mSMenuItem.mSpicySprayCount  = playData->getDopeCount(SPRAY_TYPE_SPICY);
+	disp.mSMenuItem.mSpicyBerryCount  = playData->getDopeFruitCount(SPRAY_TYPE_SPICY);
 	for (int i = 0; i < OlimarData::ODII_FIRST_NON_EXPLORATION_KIT_ITEM; i++) {
 		disp.mSMenuItem.mExplorationKitInventory[i] = playData->mOlimarData[0].hasItem(i);
 	}
@@ -1057,27 +1057,31 @@ void SingleGameSection::setDispMemberNavi(og::Screen::DataNavi& data, int naviID
  * @note Address: N/A
  * @note Size: 0x148
  */
-int SingleGameSection::calcOtakaraLevel(f32& dist)
+Radar::Mgr::RadarSearchResult SingleGameSection::calcOtakaraLevel(f32& treasureDistance)
 {
 	Navi* navi = naviMgr->getActiveNavi();
 
-	int otastate = 5;
-	dist         = 900.0f;
+	Radar::Mgr::RadarSearchResult treasureSearchResult = Radar::Mgr::NOT_PROCESSED;
+	treasureDistance                                   = 900.0f;
+
 	if (navi) {
-		Vector3f pos = navi->getPosition();
-		Vector3f out;
-		otastate = Radar::mgr->calcNearestTreasure(pos, 900.0f, out, dist);
-		if (otastate == 2) {
-			if (!(1.0f - (dist / 900.0f) < 0.0f)) {
-				return otastate;
+		Vector3f playerPosition = navi->getPosition();
+		Vector3f treasurePosition;
+		treasureSearchResult = Radar::mgr->calcNearestTreasure(playerPosition, 900.0f, treasurePosition, treasureDistance);
+
+		if (treasureSearchResult == Radar::Mgr::CLOSEST_TREASURE_FOUND) {
+			// If the distance is within the range (0 - 900.0f)
+			if (!(1.0f - (treasureDistance / 900.0f) < 0.0f)) {
+				return treasureSearchResult; // Return 2
 			} else {
 				P2DEBUG("stuff");
 			}
-		} else if (otastate == 1) {
+		} else if (treasureSearchResult == Radar::Mgr::TREASURE_FOUND) {
 			rand();
 		}
 	}
-	return otastate;
+
+	return treasureSearchResult;
 }
 
 /**
@@ -1088,21 +1092,22 @@ void SingleGameSection::updateMainMapScreen()
 {
 	og::Screen::DispMemberGround disp;
 
-	f32 dist;
-	int otastate = calcOtakaraLevel(dist);
+	f32 treasureDistance;
+	Radar::Mgr::RadarSearchResult treasureSearchResult = calcOtakaraLevel(treasureDistance);
 
 	bool flag          = false;
-	disp.mTreasureDist = dist;
-	disp.mRadarState   = otastate;
-	if (!mNeedTreasureCalc && otastate == 0 && Screen::gGame2DMgr->is_GameGround()) {
+	disp.mTreasureDist = treasureDistance;
+	disp.mRadarState   = treasureSearchResult;
+	if (!mNeedTreasureCalc && treasureSearchResult == Radar::Mgr::NO_TREASURE_FOUND && Screen::gGame2DMgr->is_GameGround()) {
 		flag              = true;
 		mNeedTreasureCalc = true;
 	}
-	if (!mTreasureRadarActive && otastate == 0) {
+	if (!mTreasureRadarActive && treasureSearchResult == Radar::Mgr::NO_TREASURE_FOUND) {
 		mTreasureRadarActive = true;
 	}
 
-	if (mTreasureRadarActive && otastate != 0 && otastate != 5) {
+	if (mTreasureRadarActive && treasureSearchResult != Radar::Mgr::NO_TREASURE_FOUND
+	    && treasureSearchResult != Radar::Mgr::NOT_PROCESSED) {
 		mTreasureRadarActive = false;
 		mNeedTreasureCalc    = false;
 	}

@@ -39,6 +39,9 @@ enum AliveOrimaType {
 
 #define GET_OTHER_NAVI(navi) (1 - (navi)->mNaviIndex)
 
+#define CG_NAVIPARMS(navi) (static_cast<NaviParms*>(navi->mParms)->mNaviParms)
+#define C_NAVIPARMS        (CG_NAVIPARMS(this))
+
 // Louie scale is also used for president
 #define OLIMAR_SCALE 1.3f
 #define LOUIE_SCALE  1.5f
@@ -75,7 +78,11 @@ struct NaviFSM : public StateMachine<Navi> {
 struct NaviWhistle {
 	NaviWhistle(Navi*);
 
-	enum WhistleState { Whistle_Inactive, Whistle_Active, Whistle_Timeout };
+	enum WhistleState {
+		WS_Idle,
+		WS_Blowing,
+		WS_Ended,
+	};
 
 	void init();
 	void updatePosition();
@@ -85,6 +92,10 @@ struct NaviWhistle {
 	void setFaceDir(f32);
 	void updateWhistle();
 	void update(Vector3f&, bool);
+
+	inline f32 getTimePercentage();
+
+	inline Vector3f getPosition() const { return mPosition; }
 
 	Vector3f mNaviOffsetVec; // _00
 	Vector3f mPosition;      // _0C
@@ -235,6 +246,7 @@ struct Navi : public FakePiki, virtual public PelletView {
 
 	inline void setCurrState(StateType* state) { mCurrentState = state; }
 	inline StateType* getCurrState() { return mCurrentState; }
+	inline struct NaviParms* getParms() { return static_cast<NaviParms*>(mParms); }
 
 	// _000      = VTBL
 	// _000-_250 = FakePiki
@@ -244,7 +256,7 @@ struct Navi : public FakePiki, virtual public PelletView {
 	u8 mStickCount;                         // _259
 	s32 mSprayCounts[2];                    // _25C proven signed by Navi::hasDope
 	u8 _264[4];                             // _264
-	bool mIsAlive;                          // _268
+	bool mHideModel;                        // _268
 	u8 mUnusedFlag;                         // _269
 	u8 mPluckingCounter;                    // _26A
 	PSM::Navi* mSoundObj;                   // _26C

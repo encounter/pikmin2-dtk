@@ -99,8 +99,8 @@ void khUtilColorAnmWM::effect_on(u32 max)
 	mFrame      = 0;
 	mUpdateMode = true;
 	for (int i = 0; i < 4; i++) {
-		if (i & 1 != i || max >= 10) {
-			Vector2f pos(getPaneCenterX(mPaneList[i]), getPaneCenterY(mPaneList[i]));
+		if (i % 2 == 0 || max >= 10) {
+			Vector3f pos(getPaneCenterX(mPaneList[i]), getPaneCenterY(mPaneList[i]), 0.0f);
 			efx2d::Arg arg(pos);
 			mEfx[i]->create(&arg);
 		}
@@ -3553,10 +3553,10 @@ void WorldMap::rocketUpdate(J2DPane* pane)
 
 	Vector2f sep           = mRocketPosition - mRocketPosition2;
 	J2DPane* shipPane2     = mScreenRocket->search('Procket');
-	JGeometry::TVec3f pos1 = shipPane2->getGlbVtx(0);
-	JGeometry::TVec3f pos2 = shipPane2->getGlbVtx(1);
-	JGeometry::TVec3f pos3 = shipPane2->getGlbVtx(2);
-	JGeometry::TVec3f pos4 = shipPane2->getGlbVtx(3);
+	JGeometry::TVec3f pos1 = shipPane2->getGlbVtx(GLBVTX_BtmLeft);
+	JGeometry::TVec3f pos2 = shipPane2->getGlbVtx(GLBVTX_BtmRight);
+	JGeometry::TVec3f pos3 = shipPane2->getGlbVtx(GLBVTX_TopLeft);
+	JGeometry::TVec3f pos4 = shipPane2->getGlbVtx(GLBVTX_TopRight);
 	f32 factor             = msVal._1C[0];
 	JGeometry::TVec2f mid1((pos1.x + pos2.x) / 2, (pos1.y + pos2.y) / 2);
 	JGeometry::TVec2f mid2((pos3.x + pos4.x) / 2, (pos3.y + pos4.y) / 2);
@@ -3566,8 +3566,7 @@ void WorldMap::rocketUpdate(J2DPane* pane)
 
 	efx2d::WorldMap::ArgDirScale arg(mEffectPos, mEffectDir, scale2);
 	efx2d::WorldMap::T2DRocketA efx;
-	efx.mGroup    = 3;
-	efx.mResMgrId = 1;
+	efx.mGroup = 3;
 	efx.create(&arg);
 	mEfxRocketSparks->setGlobalParticleScale(scale2);
 	mEfxRocketGlow->setGlobalParticleScale(scale2);
@@ -3951,7 +3950,7 @@ bool WorldMap::changeState()
 		isStateChange = true;
 		mCurrentState = WMAP_GoToZukanItem;
 
-	} else if (mInitArg.mController->getMainStickValue() > 0.1f || mInitArg.mController->isButton(Controller::PRESS_DPAD)) {
+	} else if (mInitArg.mController->getMainStickValue() > 0.1f || mInitArg.mController->isButtonHeld(Controller::PRESS_DPAD)) {
 		if (mLockoutCounter == 0) {
 			isStateChange   = true;
 			mLockoutCounter = msVal.mInputLockoutFrames;
@@ -4080,11 +4079,11 @@ int WorldMap::getTarget()
 	case COURSE_Tutorial: // currently selected valley of repose
 	{
 		// press right, go to awakening wood if opened
-		if (mInitArg.mController->isButton(Controller::PRESS_RIGHT)) {
+		if (mInitArg.mController->isButtonHeld(Controller::PRESS_RIGHT)) {
 			newMap = COURSE_Forest;
 		}
 		// press up, go to perplexing pool if opened
-		else if (mInitArg.mController->isButton(Controller::PRESS_UP)) {
+		else if (mInitArg.mController->isButtonHeld(Controller::PRESS_UP)) {
 			newMap = COURSE_Yakushima;
 		}
 		break;
@@ -4092,11 +4091,11 @@ int WorldMap::getTarget()
 	case COURSE_Forest: // currently selected awakening wood
 	{
 		// press left, go to valley of repose if opened
-		if (mInitArg.mController->isButton(Controller::PRESS_LEFT)) {
+		if (mInitArg.mController->isButtonHeld(Controller::PRESS_LEFT)) {
 			newMap = COURSE_Tutorial;
 		}
 		// press up, go to wistful wild if opened, or go to perplexing pool if not
-		else if (mInitArg.mController->isButton(Controller::PRESS_UP)) {
+		else if (mInitArg.mController->isButtonHeld(Controller::PRESS_UP)) {
 			newMap = mOpenCourses == (COURSE_Yakushima + 1) ? (int)COURSE_Yakushima
 			                                                : (int)COURSE_Last; // the int casts prevent this from un-optimising
 		}
@@ -4105,11 +4104,11 @@ int WorldMap::getTarget()
 	case COURSE_Yakushima: // currently selected perplexing pool
 	{
 		// press right, go to wistful wild if open, otherwise awakening wood
-		if (mInitArg.mController->isButton(Controller::PRESS_RIGHT)) {
+		if (mInitArg.mController->isButtonHeld(Controller::PRESS_RIGHT)) {
 			newMap = mOpenCourses == (COURSE_Yakushima + 1) ? (int)COURSE_Forest : (int)COURSE_Last;
 		}
 		// press down, to go valley of repose
-		else if (mInitArg.mController->isButton(Controller::PRESS_DOWN)) {
+		else if (mInitArg.mController->isButtonHeld(Controller::PRESS_DOWN)) {
 			newMap = COURSE_Tutorial;
 		}
 		break;
@@ -4117,11 +4116,11 @@ int WorldMap::getTarget()
 	case COURSE_Last: // currently selected wistful wild
 	{
 		// press left, go to perplexing pool
-		if (mInitArg.mController->isButton(Controller::PRESS_LEFT)) {
+		if (mInitArg.mController->isButtonHeld(Controller::PRESS_LEFT)) {
 			newMap = COURSE_Yakushima;
 		}
 		// press down, go to awakening wood
-		else if (mInitArg.mController->isButton(Controller::PRESS_DOWN)) {
+		else if (mInitArg.mController->isButtonHeld(Controller::PRESS_DOWN)) {
 			newMap = COURSE_Forest;
 		}
 		break;
@@ -5047,10 +5046,12 @@ void WorldMap::effectFirstTime()
 			ID32 caveID(mInitArg.mStages->getCourseInfo(mCurrentCourseIndex)->getCaveID_FromIndex(i));
 			if (Game::playData->isCaveFirstTime(mCurrentCourseIndex, caveID)
 			    != Game::playData->isCaveFirstTime_Old(mCurrentCourseIndex, caveID)) {
-				JGeometry::TVec3f pos1 = mScreenInfo->search(getSerialTagName('Pcave_00', i))->getGlbVtx(0);
-				JGeometry::TVec3f pos2 = mScreenInfo->search(getSerialTagName('Pcave_00', i))->getGlbVtx(3);
+				JGeometry::TVec3f pos1 = mScreenInfo->search(getSerialTagName('Pcave_00', i))->getGlbVtx(GLBVTX_BtmLeft);
+				JGeometry::TVec3f pos2 = mScreenInfo->search(getSerialTagName('Pcave_00', i))->getGlbVtx(GLBVTX_TopRight);
+				f32 x                  = (pos1.y + pos2.y) / 2;
 				for (int j = 0; j < 5; j++) {
-					Vector2f pos((pos1.y + pos2.y) / 2, (pos1.z - j) * (pos2.z - j) / 4);
+					int k = 4 - j;
+					Vector2f pos(x, ((pos1.z * k) + (pos2.z * j)) / 4);
 					efx2d::Arg arg(pos);
 					efx2d::T2DChangesmoke efx;
 					efx.create(&arg);
@@ -5498,10 +5499,15 @@ void WorldMap::OnyonDynamics::initPtcl()
  */
 Vector2f WorldMap::OnyonDynamics::move(WorldMap* wmap, const JGeometry::TVec2f& pos)
 {
-	u64 tags[4]   = { 'Nwait0', 'Nwait1', 'Nwait2', 'Nwait3' };
-	int id        = wmap->mCurrentCourseIndex;
-	J2DPane* pane = wmap->mScreenInfo->search(tags[id]);
-	f32 dist      = pos.distance(mOffset);
+	// unused pane
+	u64 tags[4] = { 'Nwait0', 'Nwait1', 'Nwait2', 'Nwait3' };
+	int id      = wmap->mCurrentCourseIndex;
+	wmap->mScreenKitagawa->search(tags[id]);
+
+	JGeometry::TVec2f posDiff = pos;
+	posDiff -= mOffset;
+	f32 dist = posDiff.length();
+
 	int prevAngle = mRotateAngle;
 	mRotateAngle += 500;
 	if (dist < 1.0f) {
@@ -5529,19 +5535,33 @@ Vector2f WorldMap::OnyonDynamics::move(WorldMap* wmap, const JGeometry::TVec2f& 
 			mOnyonPane->getParentPane()->appendChild(mOnyonPane);
 		}
 	} else {
+		posDiff.normalize();
 		f32 calc  = pikmin2_atan2f(mAngle.x, -mAngle.y);
-		f32 calc2 = pikmin2_atan2f(mAngle.x, -mAngle.y);
+		f32 calc2 = pikmin2_atan2f(posDiff.x, -posDiff.y);
 		if (calc < 0.0f) {
 			calc += TAU;
 		}
 		if (calc2 < 0.0f) {
 			calc2 += TAU;
 		}
+		if (calc < calc2) {
+			if (PI > (calc2 - calc)) {
+				calc2 += TAU;
+			}
+		} else if (PI > (calc - calc2)) {
+			calc += TAU;
+		}
+		calc2 = (calc * msVal._44 + (calc2 * (1.0f - msVal._44)));
+		if ((calc2 - calc) < -0.1f) {
+			calc2 = calc - 0.1f;
+		} else if (calc2 > 0.1f) {
+			calc2 = calc + 0.1f;
+		}
 		mAngle.set(pikmin2_sinf(calc2), -pikmin2_cosf(calc2));
 	}
 
 	update(wmap);
-	return (mEfxPosition.x, mEfxPosition.y);
+	return mOffset;
 	/*
 	.loc_0x0:
 	  stwu      r1, -0x60(r1)

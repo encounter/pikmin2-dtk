@@ -9,7 +9,7 @@
 #define FOR_MODDING false
 
 #define USADEMO1 0
-#define USAFINAL 1
+#define USAFINAL 2
 
 #if VERNUM == USAFINAL
 #define BUILDTARGET USAFINAL

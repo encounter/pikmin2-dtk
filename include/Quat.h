@@ -126,6 +126,8 @@ struct Quat {
 	 */
 	void fromMatrixf(Matrixf& out);
 
+	inline const f32 dot(Quat& q1) const { return (w * q1.w) + ((v.z * q1.v.z) + ((v.x * q1.v.x) + (v.y * q1.v.y))); }
+
 	/**
 	 * @brief Multiplies the quaternion by a scalar.
 	 * @param other The scalar to multiply by.
@@ -141,7 +143,7 @@ struct Quat {
 		return result;
 	}
 
-	inline Quat& operator+(const Quat& other)
+	inline Quat operator+(const Quat& other)
 	{
 		Quat result;
 		result.w = w + other.w;

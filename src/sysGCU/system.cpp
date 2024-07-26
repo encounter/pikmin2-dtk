@@ -30,63 +30,63 @@
 #include "LoadResource.h"
 #include "Dolphin/__start.h"
 
-GXRenderModeObj localNtsc608x448IntDfProg = { VI_TVMODE_NTSC_PROG,
-	                                          608, // fbWidth
-	                                          448, // efbHeight
-	                                          448, // xfbHeight
-	                                          27,  // viXOrigin
-	                                          16,  // viYOrigin
-	                                          666, // viWidth
-	                                          448, // viHeight
-	                                          VI_XFBMODE_SF,
-	                                          0, // field_rendering
-	                                          0, // aa
-	                                          { 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6 },
-	                                          { 0, 0, 21, 22, 21, 0, 0 } };
+static GXRenderModeObj localNtsc608x448IntDfProg = { VI_TVMODE_NTSC_PROG,
+	                                                 608, // fbWidth
+	                                                 448, // efbHeight
+	                                                 448, // xfbHeight
+	                                                 27,  // viXOrigin
+	                                                 16,  // viYOrigin
+	                                                 666, // viWidth
+	                                                 448, // viHeight
+	                                                 VI_XFBMODE_SF,
+	                                                 0, // field_rendering
+	                                                 0, // aa
+	                                                 { 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6 },
+	                                                 { 0, 0, 21, 22, 21, 0, 0 } };
 
-GXRenderModeObj localNtsc608x448IntDf = { VI_TVMODE_NTSC_INT,
-	                                      608, // fbWidth
-	                                      448, // efbHeight
-	                                      448, // xfbHeight
-	                                      27,  // viXOrigin
-	                                      16,  // viYOrigin
-	                                      666, // viWidth
-	                                      448, // viHeight
-	                                      VI_XFBMODE_DF,
-	                                      0, // field_rendering
-	                                      0, // aa
-	                                      { 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6 },
-	                                      { 7, 7, 12, 12, 12, 7, 7 } };
+static GXRenderModeObj localNtsc608x448IntDf = { VI_TVMODE_NTSC_INT,
+	                                             608, // fbWidth
+	                                             448, // efbHeight
+	                                             448, // xfbHeight
+	                                             27,  // viXOrigin
+	                                             16,  // viYOrigin
+	                                             666, // viWidth
+	                                             448, // viHeight
+	                                             VI_XFBMODE_DF,
+	                                             0, // field_rendering
+	                                             0, // aa
+	                                             { 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6 },
+	                                             { 7, 7, 12, 12, 12, 7, 7 } };
 
-GXRenderModeObj localPal608x448IntDf = { VI_TVMODE_PAL_INT,
-	                                     608, // fbWidth
-	                                     448, // efbHeight
-	                                     538, // xfbHeight
-	                                     25,  // viXOrigin
-	                                     18,  // viYOrigin
-	                                     670, // viWidth
-	                                     538, // viHeight
-	                                     VI_XFBMODE_DF,
-	                                     0, // field_rendering
-	                                     0, // aa
-	                                     { 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6 },
-	                                     { 7, 7, 12, 12, 12, 7, 7 } };
+static GXRenderModeObj localPal608x448IntDf = { VI_TVMODE_PAL_INT,
+	                                            608, // fbWidth
+	                                            448, // efbHeight
+	                                            538, // xfbHeight
+	                                            25,  // viXOrigin
+	                                            18,  // viYOrigin
+	                                            670, // viWidth
+	                                            538, // viHeight
+	                                            VI_XFBMODE_DF,
+	                                            0, // field_rendering
+	                                            0, // aa
+	                                            { 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6 },
+	                                            { 7, 7, 12, 12, 12, 7, 7 } };
 
-GXRenderModeObj localPal60608x448IntDf = { VI_TVMODE_EURGB60_INT,
-	                                       608, // fbWidth
-	                                       448, // efbHeight
-	                                       448, // xfbHeight
-	                                       27,  // viXOrigin
-	                                       16,  // viYOrigin
-	                                       666, // viWidth
-	                                       448, // viHeight
-	                                       VI_XFBMODE_DF,
-	                                       0, // field_rendering
-	                                       0, // aa
-	                                       { 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6 },
-	                                       { 7, 7, 12, 12, 12, 7, 7 } };
+static GXRenderModeObj localPal60608x448IntDf = { VI_TVMODE_EURGB60_INT,
+	                                              608, // fbWidth
+	                                              448, // efbHeight
+	                                              448, // xfbHeight
+	                                              27,  // viXOrigin
+	                                              16,  // viYOrigin
+	                                              666, // viWidth
+	                                              448, // viHeight
+	                                              VI_XFBMODE_DF,
+	                                              0, // field_rendering
+	                                              0, // aa
+	                                              { 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6 },
+	                                              { 7, 7, 12, 12, 12, 7, 7 } };
 
-GXRenderModeObj* sRenderModeTable[4]
+static GXRenderModeObj* sRenderModeTable[4]
     = { &localNtsc608x448IntDfProg, &localNtsc608x448IntDf, &localPal608x448IntDf, &localPal60608x448IntDf };
 
 System::ERenderMode System::mRenderMode;
@@ -95,21 +95,16 @@ System::GXVerifyArg System::sVerifyArg;
 
 bool sUseABXCommand = true;
 
-struct CallbackObject {
-	u32* funcPtr;
-	u16 _04;
-	OSContext* _08;
-	u32 _0C;
-	u32 _10;
-};
+static JUTException::ExCallbackObject exCallbackObject;
 
-extern CallbackObject exCallbackObject;
+// pre-declare statics
+static void preUserCallback(u16, OSContext*, u32, u32);
 
 /**
  * @note Address: 0x80421EC4
  * @note Size: 0xA0
  */
-void Pikmin2DefaultMemoryErrorRoutine(void* address, u32 size, int alignment)
+static void Pikmin2DefaultMemoryErrorRoutine(void* address, u32 size, int alignment)
 {
 	JUT_PANICLINE(99, "Memory Alloc Error!\n%x (size %d) align(%d)\nRestTotal=%d\nRestFree =%d\n", address, size, alignment,
 	              static_cast<JKRHeap*>(address)->getTotalFreeSize(), static_cast<JKRHeap*>(address)->getFreeSize());
@@ -121,38 +116,38 @@ void Pikmin2DefaultMemoryErrorRoutine(void* address, u32 size, int alignment)
  * @note Address: 0x80421F64
  * @note Size: 0x188
  */
-void kando_panic_f(bool r3, const char* r4, int line, const char* r6, ...)
+static void kando_panic_f(bool r3, const char* file, int line, const char* format, ...)
 {
 	va_list list;
-	va_start(list, r6);
+	va_start(list, format);
 
-	u32* func            = (u32*)preUserCallback;
 	JUTConsole* console  = JUTException::sConsole;
 	JUTException* except = JUTException::sErrorManager;
+	OSErrorHandler func  = (OSErrorHandler)preUserCallback;
 
-	char buffer[0xFF];
-	vsnprintf(buffer, sizeof(buffer), r6, list);
+	char buffer[260];
+	vsnprintf(buffer, 255, format, list);
 	if (!except) {
-		OSPanic(r4, line, buffer);
+		OSPanic(file, line, buffer);
 	}
 
-	OSContext* thread = &JFWSystem::mainThread->mThread->context;
+	OSContext* context = &JFWSystem::mainThread->mThread->context;
 	char dest[sizeof(OSContext)];
-	memcpy(dest, thread, sizeof(OSContext));
-	except->mStackPointer = thread;
+	memcpy(dest, context, sizeof(OSContext));
+	except->mStackPointer = (void*)((u32*)dest)[1];
 
-	exCallbackObject.funcPtr = func;
-	exCallbackObject._04     = 255;
-	exCallbackObject._08     = thread;
-	exCallbackObject._0C     = 0;
-	exCallbackObject._10     = 0;
+	exCallbackObject.mErrorHandler = func;
+	exCallbackObject.mError        = 255;
+	exCallbackObject.mContext      = context;
+	exCallbackObject._0C           = 0;
+	exCallbackObject._10           = 0;
 
 	if (!console || (console && !(console->mOutput & 2))) {
-		OSReport("%s in \"%s\" on line %d\n", buffer, r4, line);
+		OSReport("%s in \"%s\" on line %d\n", buffer, file, line);
 	}
 
 	if (console) {
-		console->print_f("%s in \"%s\" on\n line %d\n", buffer, r4, line);
+		console->print_f("%s in \"%s\" on\n line %d\n", buffer, file, line);
 	}
 
 	OSSendMessage(&JUTException::sMessageQueue, (OSMessage*)&exCallbackObject, true);
@@ -310,7 +305,7 @@ void preUserCallback(u16, OSContext*, u32, u32)
 		JUTException::sConsole->startPrint(3, "--- Game debug information ---\n");
 		JUTConsoleManager::sManager->drawDirect(true);
 	} else {
-		OSReport("ã‚³ãƒ³ã‚½ãƒ¼ãƒ«ãŒã‚ã‚Šã¾ã›ã‚“\n");
+		OSReport("ƒRƒ“ƒ\\[ƒ‹‚ª‚ ‚è‚Ü‚¹‚ñ\n"); // 'no console'
 	}
 }
 
@@ -393,7 +388,7 @@ void retraceCallback(u32)
 	if ((int)sys->mCpuLockCount > 0 && (int)sys->mCpuRetraceCount > (int)sys->mCpuLockCount) {
 		sUseABXCommand = false;
 		OSReport("cpuLockCount %d retraceCount %d\n", sys->mCpuLockCount, sys->mCpuRetraceCount);
-		kando_panic_f(1, "system/retrace", 0, "CPU LOCKED!");
+		kando_panic_f(true, "system/retrace", 0, "CPU LOCKED!");
 	}
 }
 
@@ -564,9 +559,9 @@ void System::destroyRomFont()
 void System::createSoundSystem()
 {
 	sys->heapStatusStart("SoundSystem", nullptr);
-	JKRHeap* old = JKRGetCurrentHeap();
+	JKRHeap* old = JKRHeap::getCurrentHeap();
 
-	P2ASSERTLINE(1158, JKRGetCurrentHeap());
+	P2ASSERTLINE(1158, old);
 	P2ASSERTLINE(1161, gResMgr2D);
 
 	JKRHeap* resHeap    = gResMgr2D->mHeap;
@@ -594,135 +589,10 @@ void System::createSoundSystem()
 	newheap2->adjustSize();
 
 	old->becomeCurrentHeap();
-	resHeap->destroy();
+	newheap->destroy();
 
 	sys->heapStatusEnd("SoundSystem");
 	gResMgr2D->mRemainingSize = gResMgr2D->mHeapSize;
-
-	/*
-	    stwu     r1, -0x20(r1)
-	    mflr     r0
-	    lis      r4, gStrSystem_CPP@ha
-	    li       r5, 0
-	    stw      r0, 0x24(r1)
-	    stmw     r27, 0xc(r1)
-	    addi     r29, r4, gStrSystem_CPP@l
-	    addi     r4, r29, 0x1d4
-	    lwz      r3, sys@sda21(r13)
-	    bl       heapStatusStart__6SystemFPcP7JKRHeap
-	    lwz      r31, sCurrentHeap__7JKRHeap@sda21(r13)
-	    cmplwi   r31, 0
-	    bne      lbl_80422A0C
-	    addi     r3, r29, 0
-	    addi     r5, r29, 0x174
-	    li       r4, 0x486
-	    crclr    6
-	    bl       panic_f__12JUTExceptionFPCciPCce
-
-	lbl_80422A0C:
-	    lwz      r0, gResMgr2D@sda21(r13)
-	    cmplwi   r0, 0
-	    bne      lbl_80422A2C
-	    addi     r3, r29, 0
-	    addi     r5, r29, 0x174
-	    li       r4, 0x489
-	    crclr    6
-	    bl       panic_f__12JUTExceptionFPCciPCce
-
-	lbl_80422A2C:
-	    lwz      r3, gResMgr2D@sda21(r13)
-	    lwz      r27, 4(r3)
-	    mr       r3, r27
-	    bl       getFreeSize__7JKRHeapFv
-	    mr       r4, r27
-	    li       r5, 1
-	    bl       create__10JKRExpHeapFUlP7JKRHeapb
-	    or.      r28, r3, r3
-	    bne      lbl_80422A64
-	    addi     r3, r29, 0
-	    addi     r5, r29, 0x174
-	    li       r4, 0x48d
-	    crclr    6
-	    bl       panic_f__12JUTExceptionFPCciPCce
-
-	lbl_80422A64:
-	    mr       r3, r28
-	    bl       becomeCurrentHeap__7JKRHeapFv
-	    mr       r4, r28
-	    addi     r3, r29, 0x1e0
-	    li       r5, 0
-	    bl       mount__12JKRFileCacheFPCcP7JKRHeapPCc
-	    mr       r4, r3
-	    addi     r3, r29, 0x1ec
-	    bl       getGlbResource__13JKRFileLoaderFPCcP13JKRFileLoader
-	    or.      r30, r3, r3
-	    bne      lbl_80422AA4
-	    addi     r3, r29, 0
-	    addi     r5, r29, 0x174
-	    li       r4, 0x495
-	    crclr    6
-	    bl       panic_f__12JUTExceptionFPCciPCce
-
-	lbl_80422AA4:
-	    li       r3, 0x1c
-	    bl       __nw__FUl
-	    or.      r27, r3, r3
-	    beq      lbl_80422AC4
-	    bl       __ct__Q26PSGame10SysFactoryFv
-	    lis      r3, __vt__Q23PSM7Factory@ha
-	    addi     r0, r3, __vt__Q23PSM7Factory@l
-	    stw      r0, 0x10(r27)
-
-	lbl_80422AC4:
-	    lis      r3, makeSeSound__Q23PSM7SeSoundFv@ha
-	    lis      r0, 0x90
-	    addi     r4, r3, makeSeSound__Q23PSM7SeSoundFv@l
-	    mr       r3, r27
-	    stw      r4, 0xc(r27)
-	    stw      r31, 0(r27)
-	    stw      r0, 4(r27)
-	    stw      r30, 8(r27)
-	    bl       newSoundSystem__Q26PSGame10SysFactoryFv
-	    mr       r3, r31
-	    bl       getFreeSize__7JKRHeapFv
-	    mr       r4, r31
-	    li       r5, 1
-	    bl       create__12JKRSolidHeapFUlP7JKRHeapb
-	    mr       r27, r3
-	    bl       becomeCurrentHeap__7JKRHeapFv
-	    lwz      r0, spSceneMgr__8PSSystem@sda21(r13)
-	    cmplwi   r0, 0
-	    bne      lbl_80422B24
-	    addi     r3, r29, 0x1f8
-	    addi     r5, r29, 0x174
-	    li       r4, 0x1d3
-	    crclr    6
-	    bl       panic_f__12JUTExceptionFPCciPCce
-
-	lbl_80422B24:
-	    lwz      r3, spSceneMgr__8PSSystem@sda21(r13)
-	    lwz      r12, 0(r3)
-	    lwz      r12, 0x10(r12)
-	    mtctr    r12
-	    bctrl
-	    mr       r3, r27
-	    bl       adjustSize__12JKRSolidHeapFv
-	    mr       r3, r31
-	    bl       becomeCurrentHeap__7JKRHeapFv
-	    mr       r3, r28
-	    bl       destroy__7JKRHeapFv
-	    lwz      r3, sys@sda21(r13)
-	    addi     r4, r29, 0x1d4
-	    bl       heapStatusEnd__6SystemFPc
-	    lwz      r3, gResMgr2D@sda21(r13)
-	    lwz      r0, 8(r3)
-	    stw      r0, 0xc(r3)
-	    lmw      r27, 0xc(r1)
-	    lwz      r0, 0x24(r1)
-	    mtlr     r0
-	    addi     r1, r1, 0x20
-	    blr
-	*/
 }
 
 /**
@@ -816,8 +686,8 @@ void System::loadSoundResource()
  */
 System::GXVerifyArg::GXVerifyArg()
 {
-	_00 = 1;
-	_04 = 0;
+	mUnused00 = 1;
+	mUnused04 = 0;
 }
 
 /**
@@ -1284,7 +1154,7 @@ void System::refreshGenNode() { }
 void System::setFrameRate(int newFactor)
 {
 	JFWDisplay* display = mDisplay;
-	JUT_ASSERTLINE(2343, display, "no display\n");
+	JUT_ASSERTLINE(2343, display, "no display");
 	mFrameRate          = (f32)newFactor;
 	mDeltaTime          = mFrameRate / 60.0f;
 	display->mFrameRate = newFactor;

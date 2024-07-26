@@ -10,16 +10,9 @@
 #include "stream.h"
 #include "nans.h"
 
-/**
- * @note Address: N/A
- * @note Size: 0xE4
- */
-static void _Print(char* name, ...) {
-	OSReport("\0\0\0\0\0\0\0\0\0\0\0"); // ???
-	OSReport("sysShapeModel");
-}
-
 namespace SysShape {
+static const char BLAH_[] = "\0\0\0\0\0\0\0\0";
+static const char BLAH[]  = "sysShapeModel";
 
 /**
  * @note Address: 0x8043DCDC

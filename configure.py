@@ -25,7 +25,7 @@ from tools.project import (
 )
 
 # Game versions
-DEFAULT_VERSION = 0
+DEFAULT_VERSION = 4
 VERSIONS = [
     "GPVE01_D17",  # 0
     "GPVE01_D18",  # 1
@@ -383,7 +383,7 @@ config.libs = [
             Object(Matching, "JSystem/JUtility/JUTResFont.cpp"),
             Object(Matching, "JSystem/JUtility/JUTResource.cpp"),
             Object(Matching, "JSystem/JUtility/JUTRomFont.cpp"),
-            Object(Matching, "JSystem/JUtility/JUTFontData_Ascfont_fix12.s"),
+            Object(Matching, "JSystem/JUtility/JUTFontData_Ascfont_fix12.cpp"),
             Object(Matching, "JSystem/JUtility/JUTTexture.cpp"),
             Object(Matching, "JSystem/JUtility/JUTVideo.cpp"),
             Object(Matching, "JSystem/JUtility/JUTXfb.cpp"),
@@ -658,7 +658,7 @@ config.libs = [
             Object(Matching, "Dolphin/TRK_MINNOW_DOLPHIN/targimpl.c"),
             Object(
                 Matching,
-                "Dolphin/TRK_MINNOW_DOLPHIN/targsupp.s",
+                "Dolphin/TRK_MINNOW_DOLPHIN/targsupp.c",
                 extra_cflags=["-func_align 32"],
             ),
             Object(Matching, "Dolphin/TRK_MINNOW_DOLPHIN/mpc_7xx_603e.c"),

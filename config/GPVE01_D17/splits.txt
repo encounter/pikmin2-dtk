@@ -446,7 +446,7 @@ JSystem/JUtility/JUTRomFont.cpp:
 	.sbss       start:0x80514ED0 end:0x80514EE0
 	.sdata2     start:0x80516638 end:0x80516648
 
-JSystem/JUtility/JUTFontData_Ascfont_fix12.s: comment:0
+JSystem/JUtility/JUTFontData_Ascfont_fix12.cpp: comment:0
 	.rodata     start:0x80474160 end:0x804782C0 align:32
 
 JSystem/JUtility/JUTTexture.cpp:
@@ -1246,7 +1246,7 @@ Dolphin/TRK_MINNOW_DOLPHIN/targimpl.c: comment:0
 	.data       start:0x804A67F0 end:0x804A6820
 	.bss        start:0x804F41C0 end:0x804F4740
 
-Dolphin/TRK_MINNOW_DOLPHIN/targsupp.s: comment:0
+Dolphin/TRK_MINNOW_DOLPHIN/targsupp.c: comment:0
 	.text       start:0x800BFA20 end:0x800BFA40 align:32
 
 Dolphin/TRK_MINNOW_DOLPHIN/mpc_7xx_603e.c:

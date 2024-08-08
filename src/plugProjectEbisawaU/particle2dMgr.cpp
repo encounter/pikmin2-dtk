@@ -9,7 +9,7 @@
 #include "TParticle2dMgr.h"
 #include "nans.h"
 
-static const char idk[] = "\0\0\0\0\0\0\0\0\0";
+static const char *idk = "\0\0\0\0\0\0\0\0\0";
 TParticle2dMgr* particle2dMgr;
 TParticle2dMgr* TParticle2dMgr::_instance;
 
